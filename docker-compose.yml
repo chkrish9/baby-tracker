@@ -1,0 +1,40 @@
+services:
+
+  # ── PostgreSQL database ───────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: babytracker
+      POSTGRES_PASSWORD: babytracker
+      POSTGRES_DB: babytracker
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U babytracker -d babytracker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Next.js app (frontend + backend) ─────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://babytracker:babytracker@db:5432/babytracker
+      AUTH_SECRET: ${AUTH_SECRET}
+      NODE_ENV: production
+    volumes:
+      # Persist uploaded files outside the container
+      - uploads_data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:
+  uploads_data:

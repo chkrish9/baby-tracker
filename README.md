@@ -76,10 +76,68 @@ A Progressive Web App (PWA) for tracking baby feedings and diaper changes. Multi
 
 ---
 
-## Prerequisites
+## Running with Docker (Recommended)
 
-- **Node.js** 18 or later
-- **PostgreSQL** — the app expects a database at `localhost:5434`
+The easiest way to run the full stack — app, API, and database — is with Docker Compose.
+
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
+
+### 1. Configure environment
+
+Add your secret to the `.env` file in the project root:
+
+```env
+AUTH_SECRET="your-random-secret-here"
+```
+
+Generate a secure value:
+
+```bash
+openssl rand -base64 32
+```
+
+### 2. Build and start
+
+```bash
+docker compose up --build
+```
+
+Open **http://localhost:3000** in your browser.
+
+The first run will:
+- Pull the PostgreSQL image
+- Build the Next.js app
+- Run database migrations automatically
+- Start the server
+
+### Useful commands
+
+| Command | Description |
+|---|---|
+| `docker compose up --build -d` | Build and start in background |
+| `docker compose down` | Stop all containers |
+| `docker compose down -v` | Stop and delete all data (volumes) |
+| `docker compose logs -f app` | Stream app logs |
+| `docker compose ps` | Show running containers |
+
+### Data persistence
+
+| Data | Stored in |
+|---|---|
+| Database records | `db_data` Docker volume |
+| Uploaded files | `uploads_data` Docker volume |
+
+Both volumes survive container restarts. Use `docker compose down -v` only if you want a clean slate.
+
+---
+
+## Running Locally (Development)
+
+### Prerequisites
+
+- **Node.js** 20 or later
+- **PostgreSQL** running locally
 
 ### Start PostgreSQL with Docker
 
@@ -92,10 +150,6 @@ docker run -d --name baby-db \
   postgres:16
 ```
 
----
-
-## Setup & Running
-
 ### 1. Install dependencies
 
 ```bash
@@ -104,17 +158,11 @@ npm install
 
 ### 2. Configure environment
 
-Create a `.env.local` file in the project root:
+Create a `.env.local` file:
 
 ```env
 DATABASE_URL="postgresql://babytracker:babytracker@localhost:5434/babytracker"
 AUTH_SECRET="your-random-secret-here"
-```
-
-Generate a secure `AUTH_SECRET`:
-
-```bash
-openssl rand -base64 32
 ```
 
 ### 3. Run database migrations
