@@ -16,6 +16,19 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Run Prisma migrations (one-shot, exits when done) ────────────────────
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrator
+    environment:
+      DATABASE_URL: postgresql://babytracker:babytracker@db:5432/babytracker
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
   # ── Next.js app (frontend + backend) ─────────────────────────────────────
   app:
     build:
@@ -23,10 +36,11 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       DATABASE_URL: postgresql://babytracker:babytracker@db:5432/babytracker
       AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_TRUST_HOST: "true"
       NODE_ENV: production
     volumes:
       # Persist uploaded files outside the container
@@ -34,6 +48,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   db_data:

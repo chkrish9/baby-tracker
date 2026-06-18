@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getSession, unauthorized, forbidden, notFound, assertParentOf } from "@/lib/auth-helpers";
+import { getSession, unauthorized, forbidden, notFound } from "@/lib/auth-helpers";
 
 type Params = { params: Promise<{ babyId: string; parentId: string }> };
 
