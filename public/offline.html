@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Offline — Baby Tracker</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #fff8fb; color: #4a3b45; display: flex; align-items: center; justify-content: center; min-height: 100vh; text-align: center; padding: 1rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    p { color: #f472b6; margin-bottom: 1.5rem; }
+    button { background: #f9a8d4; color: white; border: none; padding: 0.6rem 1.5rem; border-radius: 0.75rem; font-size: 1rem; cursor: pointer; }
+    button:hover { background: #f472b6; }
+  </style>
+</head>
+<body>
+  <div>
+    <div style="font-size:3rem;margin-bottom:1rem">🍼</div>
+    <h1>You&rsquo;re offline</h1>
+    <p>Check your connection and try again.</p>
+    <button onclick="location.reload()">Retry</button>
+  </div>
+</body>
+</html>

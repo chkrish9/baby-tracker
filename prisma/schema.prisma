@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  password     String // bcrypt hash
+  name         String?
+  theme        String       @default("stone")
+  profilePhoto String? // relative path: users/[id]/profile/filename
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  babies       BabyParent[]
+  sentInvites  Invite[]     @relation("InviteSender")
+}
+
+model Baby {
+  id           String            @id @default(cuid())
+  name         String
+  birthDate    DateTime
+  profilePhoto String? // relative path: babies/[id]/profile/filename
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  parents      BabyParent[]
+  feedings     FeedingLog[]
+  diapers      DiaperLog[]
+  photos       BabyPhoto[]
+  documents    MedicalDocument[]
+  invites      Invite[]
+}
+
+model BabyParent {
+  id       String     @id @default(cuid())
+  userId   String
+  babyId   String
+  role     ParentRole @default(PARENT)
+  joinedAt DateTime   @default(now())
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  baby     Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, babyId])
+  @@index([babyId])
+  @@index([userId])
+}
+
+enum ParentRole {
+  OWNER
+  PARENT
+}
+
+model Invite {
+  id              String       @id @default(cuid())
+  babyId          String
+  invitedByUserId String
+  email           String
+  status          InviteStatus @default(PENDING)
+  token           String       @unique @default(cuid())
+  expiresAt       DateTime
+  createdAt       DateTime     @default(now())
+  baby            Baby         @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  invitedBy       User         @relation("InviteSender", fields: [invitedByUserId], references: [id])
+
+  @@index([babyId])
+  @@index([email])
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+model FeedingLog {
+  id        String      @id @default(cuid())
+  babyId    String
+  type      FeedingType
+  amount    Float? // ml (bottle/solid)
+  duration  Int? // minutes (breastfeeding)
+  notes     String?
+  loggedAt  DateTime    @default(now())
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  baby      Baby        @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@index([babyId, loggedAt(sort: Desc)])
+}
+
+enum FeedingType {
+  BREAST_LEFT
+  BREAST_RIGHT
+  BOTTLE
+  SOLID
+}
+
+model DiaperLog {
+  id        String     @id @default(cuid())
+  babyId    String
+  type      DiaperType
+  notes     String?
+  loggedAt  DateTime   @default(now())
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  baby      Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@index([babyId, loggedAt(sort: Desc)])
+}
+
+enum DiaperType {
+  WET
+  DIRTY
+  BOTH
+  DRY
+}
+
+model BabyPhoto {
+  id        String   @id @default(cuid())
+  babyId    String
+  path      String // relative: babies/[id]/photos/filename
+  filename  String
+  size      Int
+  mimeType  String
+  caption   String?
+  takenAt   DateTime @default(now())
+  createdAt DateTime @default(now())
+  baby      Baby     @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@index([babyId, takenAt(sort: Desc)])
+}
+
+model MedicalDocument {
+  id           String   @id @default(cuid())
+  babyId       String
+  path         String // relative: babies/[id]/documents/filename
+  originalName String
+  size         Int
+  mimeType     String
+  uploadedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  baby         Baby     @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@index([babyId, uploadedAt(sort: Desc)])
+}

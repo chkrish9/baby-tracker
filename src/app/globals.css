@@ -1,0 +1,88 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+
+/* ── Stone (default — warm taupe, gender neutral) ── */
+:root {
+  --background: #faf9f7;
+  --foreground: #2c2520;
+
+  --color-pink-50:  #f7f5f2;
+  --color-pink-100: #ece7e1;
+  --color-pink-200: #d6cdc4;
+  --color-pink-300: #a89b8c;
+  --color-pink-400: #8c7b6c;
+  --color-pink-500: #6b5447;
+  --color-pink-600: #574439;
+  --color-pink-700: #3d302a;
+  --color-pink-800: #291f1a;
+
+  --color-mint-100: #e1f7ee;
+  --color-mint-200: #bdebd9;
+  --color-mint-300: #8fdcc0;
+
+  --color-butter-100: #fff6dd;
+  --color-butter-200: #ffe9a8;
+
+  --color-sky-100: #e6f3ff;
+  --color-sky-200: #bfe3ff;
+}
+
+/* ── Sage (soft green, nature) ── */
+html[data-theme="sage"] {
+  --background: #f7faf5;
+  --foreground: #1e2d1a;
+
+  --color-pink-50:  #f0f5ee;
+  --color-pink-100: #dcebd6;
+  --color-pink-200: #bcd9b2;
+  --color-pink-300: #87a878;
+  --color-pink-400: #6a8f5b;
+  --color-pink-500: #4f7040;
+  --color-pink-600: #3d5a30;
+  --color-pink-700: #2a3f20;
+  --color-pink-800: #1a2913;
+}
+
+/* ── Ocean (soft blue, calm) ── */
+html[data-theme="ocean"] {
+  --background: #f4f8fd;
+  --foreground: #1a2c3d;
+
+  --color-pink-50:  #edf4fb;
+  --color-pink-100: #d2e7f5;
+  --color-pink-200: #a9d0ec;
+  --color-pink-300: #7aaed4;
+  --color-pink-400: #5590be;
+  --color-pink-500: #3b74a3;
+  --color-pink-600: #2d5c86;
+  --color-pink-700: #1e3f5e;
+  --color-pink-800: #122843;
+}
+
+/* ── Blossom (original pink) ── */
+html[data-theme="blossom"] {
+  --background: #fff8fb;
+  --foreground: #4a3b45;
+
+  --color-pink-50:  #fff5f9;
+  --color-pink-100: #fde6f0;
+  --color-pink-200: #f9cfe3;
+  --color-pink-300: #f9a8d4;
+  --color-pink-400: #f472b6;
+  --color-pink-500: #ec4899;
+  --color-pink-600: #db2777;
+  --color-pink-700: #be185d;
+  --color-pink-800: #9d174d;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
