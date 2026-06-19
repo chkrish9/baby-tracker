@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { Avatar } from "@/components/ui/Avatar";
 
@@ -12,6 +13,7 @@ export function Navbar() {
   const { data: userSettings } = useSWR(session ? "/api/user/settings" : null, fetcher);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (!open) return;
@@ -24,10 +26,11 @@ export function Navbar() {
     return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("keydown", keyHandler); };
   }, [open]);
 
-  function handleSignOut() {
+  async function handleSignOut() {
     localStorage.removeItem("rm");
     sessionStorage.removeItem("rm");
-    signOut({ callbackUrl: "/login" });
+    await signOut({ redirect: false });
+    router.replace("/login");
   }
 
   const photoSrc = userSettings?.profilePhoto ? `/api/files/${userSettings.profilePhoto}` : undefined;

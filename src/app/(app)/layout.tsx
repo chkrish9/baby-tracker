@@ -14,7 +14,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (status === "loading") return;
     if (!session) { router.replace("/login"); return; }
     const hasRm = localStorage.getItem("rm") === "1" || sessionStorage.getItem("rm") === "1";
-    if (!hasRm) signOut({ callbackUrl: "/login" });
+    if (!hasRm) signOut({ redirect: false }).then(() => router.replace("/login"));
   }, [session, status, router]);
 
   if (status === "loading" || !session) return null;
