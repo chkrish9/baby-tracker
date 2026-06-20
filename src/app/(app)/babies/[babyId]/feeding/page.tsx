@@ -1,65 +1,343 @@
 "use client";
-import { use } from "react";
-import Link from "next/link";
+import { use, useState } from "react";
 import { mutate } from "swr";
 import { useFeedings } from "@/hooks/useFeeding";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { useDiapers } from "@/hooks/useDiapers";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
 import { Spinner } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
 
-const typeLabel: Record<string, string> = { BREAST_LEFT: "Left breast", BREAST_RIGHT: "Right breast", BOTTLE: "Bottle", SOLID: "Solid food" };
-const typeBadge: Record<string, "pink" | "mint" | "butter" | "sky"> = { BREAST_LEFT: "pink", BREAST_RIGHT: "pink", BOTTLE: "sky", SOLID: "butter" };
+const FEED_TYPES = [
+  { value: "BOTTLE", label: "Bottle" },
+  { value: "BREAST_LEFT", label: "Breast (L)" },
+  { value: "BREAST_RIGHT", label: "Breast (R)" },
+  { value: "SOLID", label: "Solid" },
+];
+
+const DIAPER_TYPES = [
+  { value: "WET", label: "Wet" },
+  { value: "DIRTY", label: "Dirty" },
+  { value: "BOTH", label: "Mixed" },
+];
+
+const FEED_LABELS: Record<string, string> = {
+  BREAST_LEFT: "Breast (L)", BREAST_RIGHT: "Breast (R)", BOTTLE: "Bottle", SOLID: "Solid"
+};
+
+const DIAPER_LABELS: Record<string, string> = {
+  WET: "Wet", DIRTY: "Dirty", BOTH: "Mixed", DRY: "Dry"
+};
 
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function timeAgo(iso: string) {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  const h = Math.floor(diff / 3600);
+  const m = Math.floor((diff % 3600) / 60);
+  return m > 0 ? `${h}h ${m}m ago` : `${h}h ago`;
+}
+
+function dayLabel(iso: string) {
+  const d = new Date(iso);
+  const today = new Date().toDateString();
+  const yest = new Date(Date.now() - 86400000).toDateString();
+  if (d.toDateString() === today) return "TODAY";
+  if (d.toDateString() === yest) return "YESTERDAY";
+  return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }).toUpperCase();
+}
+
+function BottleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 2h6M7 2v2.5C5.5 5.5 4 7 4 9.5v5a1.5 1.5 0 001.5 1.5h7A1.5 1.5 0 0014 14.5v-5C14 7 12.5 5.5 11 4.5V2" />
+    </svg>
+  );
+}
+
+function DiaperIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 6h14v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+      <path d="M2 6c2 0 4 2 7 2s5-2 7-2" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" />
+    </svg>
+  );
 }
 
 interface FeedingLog { id: string; type: string; amount?: number | null; duration?: number | null; notes?: string | null; loggedAt: string; }
+interface DiaperLog { id: string; type: string; notes?: string | null; loggedAt: string; }
 
-export default function FeedingPage({ params }: { params: Promise<{ babyId: string }> }) {
+export default function LogsPage({ params }: { params: Promise<{ babyId: string }> }) {
   const { babyId } = use(params);
-  const { data: logs, isLoading } = useFeedings(babyId);
   const { toast } = useToast();
 
-  async function handleDelete(logId: string) {
+  const [tab, setTab] = useState<"feeding" | "diaper">("feeding");
+  const [showFeedModal, setShowFeedModal] = useState(false);
+  const [showDiaperModal, setShowDiaperModal] = useState(false);
+
+  // Feeding form state
+  const [feedType, setFeedType] = useState("BOTTLE");
+  const [feedAmount, setFeedAmount] = useState("");
+  const [feedDuration, setFeedDuration] = useState("");
+  const [feedNotes, setFeedNotes] = useState("");
+  const [feedLoading, setFeedLoading] = useState(false);
+
+  // Diaper form state
+  const [diaperType, setDiaperType] = useState("WET");
+  const [diaperNotes, setDiaperNotes] = useState("");
+  const [diaperLoading, setDiaperLoading] = useState(false);
+
+  const { data: feedings, isLoading: feedLoading2 } = useFeedings(babyId);
+  const { data: diapers, isLoading: diaperLoading2 } = useDiapers(babyId);
+
+  async function handleDeleteFeed(logId: string) {
     const res = await fetch(`/api/babies/${babyId}/feeding/${logId}`, { method: "DELETE" });
     if (res.ok) { mutate(`/api/babies/${babyId}/feeding`); toast("Entry deleted", "success"); }
     else toast("Failed to delete", "error");
   }
 
+  async function handleDeleteDiaper(logId: string) {
+    const res = await fetch(`/api/babies/${babyId}/diapers/${logId}`, { method: "DELETE" });
+    if (res.ok) { mutate(`/api/babies/${babyId}/diapers`); toast("Entry deleted", "success"); }
+    else toast("Failed to delete", "error");
+  }
+
+  async function handleLogFeed(e: React.FormEvent) {
+    e.preventDefault();
+    setFeedLoading(true);
+    const body: Record<string, unknown> = { type: feedType };
+    const showAmount = feedType === "BOTTLE" || feedType === "SOLID";
+    const showDuration = feedType === "BREAST_LEFT" || feedType === "BREAST_RIGHT";
+    if (showAmount && feedAmount) body.amount = parseFloat(feedAmount);
+    if (showDuration && feedDuration) body.duration = parseInt(feedDuration);
+    if (feedNotes) body.notes = feedNotes;
+    const res = await fetch(`/api/babies/${babyId}/feeding`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    setFeedLoading(false);
+    if (!res.ok) { toast("Failed to log", "error"); return; }
+    await mutate(`/api/babies/${babyId}/feeding`);
+    await mutate(`/api/babies/${babyId}`);
+    toast("Feeding logged!", "success");
+    setShowFeedModal(false);
+    setFeedAmount(""); setFeedDuration(""); setFeedNotes(""); setFeedType("BOTTLE");
+  }
+
+  async function handleLogDiaper(e: React.FormEvent) {
+    e.preventDefault();
+    setDiaperLoading(true);
+    const body: Record<string, unknown> = { type: diaperType };
+    if (diaperNotes) body.notes = diaperNotes;
+    const res = await fetch(`/api/babies/${babyId}/diapers`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    setDiaperLoading(false);
+    if (!res.ok) { toast("Failed to log", "error"); return; }
+    await mutate(`/api/babies/${babyId}/diapers`);
+    await mutate(`/api/babies/${babyId}`);
+    toast("Diaper logged!", "success");
+    setShowDiaperModal(false);
+    setDiaperNotes(""); setDiaperType("WET");
+  }
+
+  // Group logs by day
+  function groupByDay<T extends { loggedAt: string }>(logs: T[]) {
+    const groups: { label: string; items: T[] }[] = [];
+    const seen = new Map<string, number>();
+    for (const item of logs) {
+      const key = new Date(item.loggedAt).toDateString();
+      const label = dayLabel(item.loggedAt);
+      if (!seen.has(key)) {
+        seen.set(key, groups.length);
+        groups.push({ label, items: [item] });
+      } else {
+        groups[seen.get(key)!].items.push(item);
+      }
+    }
+    return groups;
+  }
+
+  const feedGroups = groupByDay<FeedingLog>(feedings ?? []);
+  const diaperGroups = groupByDay<DiaperLog>(diapers ?? []);
+  const isLoading = tab === "feeding" ? feedLoading2 : diaperLoading2;
+  const isEmpty = tab === "feeding" ? !feedings?.length : !diapers?.length;
+
   return (
-    <div className="max-w-2xl mx-auto">
-      <PageHeader
-        title="Feedings"
-        action={<Link href={`/babies/${babyId}/feeding/new`}><Button size="sm">+ Log</Button></Link>}
-      />
+    <div className="max-w-lg mx-auto">
+      {/* Tab switcher */}
+      <div className="px-4 pt-4">
+        <div className="flex bg-pink-50 rounded-2xl p-1">
+          <button
+            onClick={() => setTab("feeding")}
+            className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${tab === "feeding" ? "bg-white text-foreground shadow-sm" : "text-foreground/40"}`}
+          >
+            Feeding
+          </button>
+          <button
+            onClick={() => setTab("diaper")}
+            className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${tab === "diaper" ? "bg-white text-foreground shadow-sm" : "text-foreground/40"}`}
+          >
+            Diaper
+          </button>
+        </div>
+      </div>
+
+      {/* Section header */}
+      <div className="flex items-center justify-between px-4 py-4">
+        <h1 className="text-2xl font-bold text-foreground font-serif">
+          {tab === "feeding" ? "Feedings" : "Diapers"}
+        </h1>
+        <Button
+          size="sm"
+          onClick={() => tab === "feeding" ? setShowFeedModal(true) : setShowDiaperModal(true)}
+        >
+          + {tab === "feeding" ? "Log feed" : "Log diaper"}
+        </Button>
+      </div>
+
       {isLoading && <div className="flex justify-center py-12"><Spinner /></div>}
-      {!isLoading && !logs?.length && (
-        <div className="text-center py-16 text-pink-400">
-          <div className="text-5xl mb-3">🍼</div>
-          <p className="mb-4">No feedings logged yet</p>
-          <Link href={`/babies/${babyId}/feeding/new`}><Button>Log feeding</Button></Link>
+
+      {!isLoading && isEmpty && (
+        <div className="text-center py-16 text-foreground/30">
+          <div className="flex justify-center mb-3">
+            {tab === "feeding" ? <BottleIcon /> : <DiaperIcon />}
+          </div>
+          <p className="text-sm">No {tab === "feeding" ? "feedings" : "diaper changes"} yet</p>
         </div>
       )}
-      <div className="px-4 space-y-2 pb-6">
-        {logs?.map((log: FeedingLog) => (
-          <Card key={log.id} className="flex items-start gap-3">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <Badge variant={typeBadge[log.type] ?? "pink"}>{typeLabel[log.type] ?? log.type}</Badge>
-                <span className="text-xs text-pink-400">{formatTime(log.loggedAt)}</span>
-              </div>
-              {log.amount != null && <p className="text-sm text-foreground">{log.amount} ml</p>}
-              {log.duration != null && <p className="text-sm text-foreground">{log.duration} min</p>}
-              {log.notes && <p className="text-xs text-pink-400 mt-1">{log.notes}</p>}
+
+      <div className="px-4 pb-6 space-y-4">
+        {tab === "feeding" && feedGroups.map((group) => (
+          <div key={group.label}>
+            <p className="text-xs font-semibold text-foreground/40 tracking-widest mb-2 px-1">{group.label}</p>
+            <div className="space-y-2">
+              {group.items.map((log) => (
+                <div key={log.id} className="flex items-center gap-3 bg-white rounded-2xl border border-pink-100/60 p-3.5">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-pink-50 text-pink-400 flex-shrink-0">
+                    <BottleIcon />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground text-sm">{FEED_LABELS[log.type] ?? log.type}</p>
+                    <p className="text-xs text-foreground/50 truncate">
+                      {[log.amount && `${log.amount} ml`, log.duration && `${log.duration} min`, log.notes].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0 mr-2">
+                    <p className="text-sm font-medium text-foreground">{formatTime(log.loggedAt)}</p>
+                    <p className="text-xs text-foreground/40">{timeAgo(log.loggedAt)}</p>
+                  </div>
+                  <button onClick={() => handleDeleteFeed(log.id)} className="text-foreground/20 hover:text-red-400 transition-colors flex-shrink-0">
+                    <TrashIcon />
+                  </button>
+                </div>
+              ))}
             </div>
-            <button onClick={() => handleDelete(log.id)} className="text-pink-300 hover:text-red-400 text-lg leading-none mt-0.5">&times;</button>
-          </Card>
+          </div>
+        ))}
+
+        {tab === "diaper" && diaperGroups.map((group) => (
+          <div key={group.label}>
+            <p className="text-xs font-semibold text-foreground/40 tracking-widest mb-2 px-1">{group.label}</p>
+            <div className="space-y-2">
+              {group.items.map((log) => (
+                <div key={log.id} className="flex items-center gap-3 bg-white rounded-2xl border border-pink-100/60 p-3.5">
+                  <div className={`flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0 ${log.type === "WET" ? "bg-sky-100 text-sky-500" : log.type === "DIRTY" ? "bg-amber-50 text-amber-500" : "bg-pink-50 text-pink-400"}`}>
+                    <DiaperIcon />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground text-sm">{DIAPER_LABELS[log.type] ?? log.type}</p>
+                    <p className="text-xs text-foreground/50 truncate">{log.notes ?? "No note"}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0 mr-2">
+                    <p className="text-sm font-medium text-foreground">{formatTime(log.loggedAt)}</p>
+                    <p className="text-xs text-foreground/40">{timeAgo(log.loggedAt)}</p>
+                  </div>
+                  <button onClick={() => handleDeleteDiaper(log.id)} className="text-foreground/20 hover:text-red-400 transition-colors flex-shrink-0">
+                    <TrashIcon />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
+
+      {/* Log feeding modal */}
+      <Modal open={showFeedModal} onClose={() => setShowFeedModal(false)} title="Log a feeding">
+        <form onSubmit={handleLogFeed} className="space-y-4 mt-2">
+          <div>
+            <p className="text-sm font-medium text-foreground mb-2">Type</p>
+            <div className="flex gap-2">
+              {FEED_TYPES.map((t) => (
+                <button key={t.value} type="button" onClick={() => setFeedType(t.value)}
+                  className={`flex-1 py-2 rounded-2xl border text-sm font-medium transition-all ${feedType === t.value ? "border-pink-400 bg-pink-50 text-pink-700" : "border-pink-100 text-foreground/60"}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {(feedType === "BOTTLE" || feedType === "SOLID") && (
+            <div>
+              <p className="text-sm font-medium text-foreground mb-2">Amount</p>
+              <Input type="number" min="0" step="0.1" value={feedAmount} onChange={(e) => setFeedAmount(e.target.value)} placeholder="e.g. 120 ml" />
+            </div>
+          )}
+          {(feedType === "BREAST_LEFT" || feedType === "BREAST_RIGHT") && (
+            <div>
+              <p className="text-sm font-medium text-foreground mb-2">Duration (min)</p>
+              <Input type="number" min="0" value={feedDuration} onChange={(e) => setFeedDuration(e.target.value)} placeholder="e.g. 15" />
+            </div>
+          )}
+          <div>
+            <p className="text-sm font-medium text-foreground mb-2">Note <span className="text-foreground/40 font-normal">(optional)</span></p>
+            <textarea
+              value={feedNotes}
+              onChange={(e) => setFeedNotes(e.target.value)}
+              placeholder="How did it go?"
+              rows={3}
+              className="block w-full rounded-2xl border border-pink-100 bg-white px-4 py-2.5 text-sm text-foreground placeholder:text-foreground/30 focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
+            />
+          </div>
+          <Button type="submit" loading={feedLoading} className="w-full !py-3">Save feeding</Button>
+        </form>
+      </Modal>
+
+      {/* Log diaper modal */}
+      <Modal open={showDiaperModal} onClose={() => setShowDiaperModal(false)} title="Log a diaper change">
+        <form onSubmit={handleLogDiaper} className="space-y-4 mt-2">
+          <div>
+            <p className="text-sm font-medium text-foreground mb-2">Type</p>
+            <div className="flex gap-2">
+              {DIAPER_TYPES.map((t) => (
+                <button key={t.value} type="button" onClick={() => setDiaperType(t.value)}
+                  className={`flex-1 py-2 rounded-2xl border text-sm font-medium transition-all ${diaperType === t.value ? "border-pink-400 bg-pink-50 text-pink-700" : "border-pink-100 text-foreground/60"}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground mb-2">Note <span className="text-foreground/40 font-normal">(optional)</span></p>
+            <textarea
+              value={diaperNotes}
+              onChange={(e) => setDiaperNotes(e.target.value)}
+              placeholder="Colour, consistency, anything unusual..."
+              rows={3}
+              className="block w-full rounded-2xl border border-pink-100 bg-white px-4 py-2.5 text-sm text-foreground placeholder:text-foreground/30 focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
+            />
+          </div>
+          <Button type="submit" loading={diaperLoading} className="w-full !py-3">Save diaper</Button>
+        </form>
+      </Modal>
     </div>
   );
 }

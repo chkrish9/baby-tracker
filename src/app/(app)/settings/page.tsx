@@ -1,12 +1,10 @@
 "use client";
 import { useRef, useState, useEffect } from "react";
 import useSWR, { mutate } from "swr";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { Card, CardTitle } from "@/components/ui/Card";
+import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Label } from "@/components/ui/Label";
-import { Avatar } from "@/components/ui/Avatar";
 import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
 import { useToast } from "@/components/ui/Toast";
 
@@ -14,15 +12,14 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export default function SettingsPage() {
   const { data: user } = useSWR("/api/user/settings", fetcher);
+  const { data: session } = useSession();
   const { toast } = useToast();
+  const router = useRouter();
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [savingPassword, setSavingPassword] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
 
   useEffect(() => { if (user?.name) setName(user.name); }, [user]);
 
@@ -31,7 +28,7 @@ export default function SettingsPage() {
     const formData = new FormData();
     formData.append("file", files[0]);
     const res = await fetch("/api/user/photo", { method: "POST", body: formData });
-    if (res.ok) { await mutate("/api/user/settings"); toast("Profile photo updated!", "success"); }
+    if (res.ok) { await mutate("/api/user/settings"); toast("Photo updated!", "success"); }
     else { const d = await res.json().catch(() => ({})); toast(d.error ?? "Upload failed", "error"); }
   }
 
@@ -40,92 +37,67 @@ export default function SettingsPage() {
     setSavingProfile(true);
     const res = await fetch("/api/user/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
     setSavingProfile(false);
-    if (res.ok) { await mutate("/api/user/settings"); toast("Profile saved!", "success"); }
-    else toast("Failed to save profile", "error");
-  }
-
-  async function handleChangePassword(e: React.FormEvent) {
-    e.preventDefault();
-    if (newPassword !== confirmPassword) { toast("Passwords do not match", "error"); return; }
-    setSavingPassword(true);
-    const res = await fetch("/api/user/password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword, newPassword }) });
-    setSavingPassword(false);
     if (res.ok) {
-      toast("Password changed!", "success");
-      setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+      await mutate("/api/user/settings");
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2000);
     } else {
-      const d = await res.json().catch(() => ({}));
-      toast(d.error ?? "Failed to change password", "error");
+      toast("Failed to save profile", "error");
     }
   }
 
-  const photoSrc = user?.profilePhoto ? `/api/files/${user.profilePhoto}` : undefined;
+  async function handleSignOut() {
+    localStorage.removeItem("rm");
+    sessionStorage.removeItem("rm");
+    await signOut({ redirect: false });
+    router.replace("/login");
+  }
 
   return (
-    <div className="max-w-lg mx-auto">
-      <PageHeader title="Settings" />
-      <div className="px-4 space-y-4 pb-8">
+    <div className="max-w-lg mx-auto px-4 py-4">
+      <h1 className="text-2xl font-bold text-foreground font-serif mb-5">Settings</h1>
 
-        {/* Profile photo */}
-        <Card>
-          <CardTitle className="mb-4">Profile photo</CardTitle>
-          <div className="flex items-center gap-4">
-            <div className="relative group cursor-pointer" onClick={() => photoInputRef.current?.click()}>
-              <Avatar src={photoSrc} name={user?.name ?? user?.email} size={72} />
-              <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                <span className="text-white text-lg">📷</span>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-foreground font-medium">Click to upload</p>
-              <p className="text-xs text-foreground/50 mt-0.5">JPG, PNG, WEBP · max 5 MB</p>
-            </div>
+      {/* Theme */}
+      <div className="bg-white rounded-2xl border border-pink-100/60 p-4 mb-3">
+        <p className="text-xs font-semibold text-foreground/40 tracking-widest uppercase mb-4">Theme</p>
+        <ThemeSwitcher showLabels />
+      </div>
+
+      {/* Profile */}
+      <div className="bg-white rounded-2xl border border-pink-100/60 p-4 mb-3">
+        <p className="text-xs font-semibold text-foreground/40 tracking-widest uppercase mb-4">Profile</p>
+        <form onSubmit={handleSaveProfile} className="space-y-3">
+          <div>
+            <label className="text-sm font-medium text-foreground block mb-1.5">Name</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
           </div>
-          <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e.target.files)} />
-        </Card>
+          <div>
+            <label className="text-sm font-medium text-foreground block mb-1.5">Email</label>
+            <Input value={user?.email ?? session?.user?.email ?? ""} disabled className="opacity-60 cursor-not-allowed" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Button type="submit" loading={savingProfile} size="sm" className={profileSaved ? "!bg-green-600" : ""}>
+              {profileSaved ? "Saved" : "Save profile"}
+            </Button>
+            <button type="button" onClick={() => photoInputRef.current?.click()} className="text-sm text-foreground/40 hover:text-foreground/60 transition-colors">
+              Change photo
+            </button>
+          </div>
+        </form>
+        <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e.target.files)} />
+      </div>
 
-        {/* Appearance */}
-        <Card>
-          <CardTitle className="mb-4">Appearance</CardTitle>
-          <ThemeSwitcher showLabels />
-        </Card>
-
-        {/* Profile */}
-        <Card>
-          <CardTitle className="mb-4">Profile</CardTitle>
-          <form onSubmit={handleSaveProfile} className="space-y-3">
-            <div>
-              <Label htmlFor="name">Display name</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
-            </div>
-            <div>
-              <Label>Email</Label>
-              <Input value={user?.email ?? ""} disabled className="opacity-60 cursor-not-allowed" />
-            </div>
-            <Button type="submit" loading={savingProfile} size="sm">Save profile</Button>
-          </form>
-        </Card>
-
-        {/* Security */}
-        <Card>
-          <CardTitle className="mb-4">Change password</CardTitle>
-          <form onSubmit={handleChangePassword} className="space-y-3">
-            <div>
-              <Label htmlFor="cur-pw">Current password</Label>
-              <Input id="cur-pw" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required autoComplete="current-password" />
-            </div>
-            <div>
-              <Label htmlFor="new-pw">New password</Label>
-              <Input id="new-pw" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
-            </div>
-            <div>
-              <Label htmlFor="conf-pw">Confirm new password</Label>
-              <Input id="conf-pw" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required autoComplete="new-password" />
-            </div>
-            <Button type="submit" loading={savingPassword} size="sm">Change password</Button>
-          </form>
-        </Card>
-
+      {/* Sign out */}
+      <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center justify-center gap-2 text-red-500 hover:text-red-600 font-medium text-sm transition-colors"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 8H3M7 5l-3 3 3 3M6 3H3a1 1 0 00-1 1v8a1 1 0 001 1h3" />
+          </svg>
+          Sign out
+        </button>
       </div>
     </div>
   );

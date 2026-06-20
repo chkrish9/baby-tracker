@@ -1,27 +1,26 @@
 "use client";
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 
-export type Theme = "stone" | "sage" | "ocean" | "blossom";
+export type Theme = "sage" | "clay" | "ocean" | "plum";
 
 const THEME_COLORS: Record<Theme, string> = {
-  stone:   "#a89b8c",
-  sage:    "#87a878",
-  ocean:   "#7aaed4",
-  blossom: "#f9a8d4",
+  sage:  "#4A6741",
+  clay:  "#7D5240",
+  ocean: "#3F7299",
+  plum:  "#6B50A0",
 };
 
 interface ThemeCtx { theme: Theme; setTheme: (t: Theme) => void; }
-const ThemeContext = createContext<ThemeCtx>({ theme: "stone", setTheme: () => {} });
+const ThemeContext = createContext<ThemeCtx>({ theme: "sage", setTheme: () => {} });
 
 export function useTheme() { return useContext(ThemeContext); }
 
 function applyTheme(theme: Theme) {
-  if (theme === "stone") {
+  if (theme === "sage") {
     document.documentElement.removeAttribute("data-theme");
   } else {
     document.documentElement.setAttribute("data-theme", theme);
   }
-  // Update PWA theme-color meta tag
   let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (!meta) {
     meta = document.createElement("meta");
@@ -31,24 +30,30 @@ function applyTheme(theme: Theme) {
   meta.content = THEME_COLORS[theme];
 }
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("stone");
+function migrateTheme(saved: string): Theme {
+  const map: Record<string, Theme> = { stone: "sage", blossom: "plum" };
+  return (map[saved] ?? saved) as Theme;
+}
 
-  // Apply localStorage theme immediately on mount (prevents flash)
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [theme, setThemeState] = useState<Theme>("sage");
+
   useEffect(() => {
-    const saved = (localStorage.getItem("theme") as Theme) ?? "stone";
+    const raw = localStorage.getItem("theme") ?? "sage";
+    const saved = migrateTheme(raw);
     setThemeState(saved);
     applyTheme(saved);
 
-    // Sync with server
     fetch("/api/user/settings")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
-        if (data?.theme && data.theme !== saved) {
-          const serverTheme = data.theme as Theme;
-          setThemeState(serverTheme);
-          applyTheme(serverTheme);
-          localStorage.setItem("theme", serverTheme);
+        if (data?.theme) {
+          const serverTheme = migrateTheme(data.theme);
+          if (serverTheme !== saved) {
+            setThemeState(serverTheme);
+            applyTheme(serverTheme);
+            localStorage.setItem("theme", serverTheme);
+          }
         }
       })
       .catch(() => {});

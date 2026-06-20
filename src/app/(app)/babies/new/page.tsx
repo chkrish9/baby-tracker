@@ -5,8 +5,6 @@ import { mutate } from "swr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Label } from "@/components/ui/Label";
-import { Card } from "@/components/ui/Card";
 import { useToast } from "@/components/ui/Toast";
 
 export default function NewBabyPage() {
@@ -34,21 +32,19 @@ export default function NewBabyPage() {
 
   return (
     <div className="max-w-md mx-auto">
-      <PageHeader title="Add a baby" />
+      <PageHeader title="Add a baby" backHref="/dashboard" />
       <div className="px-4">
-        <Card>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="name">Baby&apos;s name</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Emma" />
-            </div>
-            <div>
-              <Label htmlFor="birthDate">Date of birth</Label>
-              <Input id="birthDate" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} required max={new Date().toISOString().split("T")[0]} />
-            </div>
-            <Button type="submit" loading={loading} className="w-full">Add baby</Button>
-          </form>
-        </Card>
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-pink-100/60 p-5 space-y-4">
+          <div>
+            <label className="text-sm font-medium text-foreground block mb-1.5">Baby&apos;s name</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Emma" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground block mb-1.5">Date of birth</label>
+            <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} required max={new Date().toISOString().split("T")[0]} />
+          </div>
+          <Button type="submit" loading={loading} className="w-full !py-3">Add baby</Button>
+        </form>
       </div>
     </div>
   );

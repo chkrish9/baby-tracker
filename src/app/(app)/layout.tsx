@@ -23,7 +23,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <ToastProvider>
       <div className="min-h-screen flex flex-col bg-background">
         <Navbar />
-        <main className="flex-1 pb-20 sm:pb-0">{children}</main>
+        <main className="flex-1 pb-24">{children}</main>
         <BottomNav />
       </div>
     </ToastProvider>

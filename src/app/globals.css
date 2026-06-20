@@ -1,20 +1,20 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/forms";
 
-/* ── Stone (default — warm taupe, gender neutral) ── */
+/* ── Sage (default) ── */
 :root {
-  --background: #faf9f7;
-  --foreground: #2c2520;
+  --background: #EAE6DC;
+  --foreground: #1C1C1A;
 
-  --color-pink-50:  #f7f5f2;
-  --color-pink-100: #ece7e1;
-  --color-pink-200: #d6cdc4;
-  --color-pink-300: #a89b8c;
-  --color-pink-400: #8c7b6c;
-  --color-pink-500: #6b5447;
-  --color-pink-600: #574439;
-  --color-pink-700: #3d302a;
-  --color-pink-800: #291f1a;
+  --color-pink-50:  #F2F5F0;
+  --color-pink-100: #DDE4DA;
+  --color-pink-200: #C3D1BE;
+  --color-pink-300: #9DB896;
+  --color-pink-400: #718D69;
+  --color-pink-500: #4A6741;
+  --color-pink-600: #3D5835;
+  --color-pink-700: #2D4228;
+  --color-pink-800: #1E2D1B;
 
   --color-mint-100: #e1f7ee;
   --color-mint-200: #bdebd9;
@@ -27,58 +27,59 @@
   --color-sky-200: #bfe3ff;
 }
 
-/* ── Sage (soft green, nature) ── */
-html[data-theme="sage"] {
-  --background: #f7faf5;
-  --foreground: #1e2d1a;
+/* ── Clay ── */
+html[data-theme="clay"] {
+  --background: #EDE7E0;
+  --foreground: #2A1F18;
 
-  --color-pink-50:  #f0f5ee;
-  --color-pink-100: #dcebd6;
-  --color-pink-200: #bcd9b2;
-  --color-pink-300: #87a878;
-  --color-pink-400: #6a8f5b;
-  --color-pink-500: #4f7040;
-  --color-pink-600: #3d5a30;
-  --color-pink-700: #2a3f20;
-  --color-pink-800: #1a2913;
+  --color-pink-50:  #F5F0EB;
+  --color-pink-100: #E8D8CC;
+  --color-pink-200: #D4B9A7;
+  --color-pink-300: #B89484;
+  --color-pink-400: #9A7060;
+  --color-pink-500: #7D5240;
+  --color-pink-600: #6A3F2E;
+  --color-pink-700: #4D2E20;
+  --color-pink-800: #321D12;
 }
 
-/* ── Ocean (soft blue, calm) ── */
+/* ── Ocean ── */
 html[data-theme="ocean"] {
-  --background: #f4f8fd;
-  --foreground: #1a2c3d;
+  --background: #E8EEF4;
+  --foreground: #1A2C3D;
 
-  --color-pink-50:  #edf4fb;
-  --color-pink-100: #d2e7f5;
-  --color-pink-200: #a9d0ec;
-  --color-pink-300: #7aaed4;
-  --color-pink-400: #5590be;
-  --color-pink-500: #3b74a3;
-  --color-pink-600: #2d5c86;
-  --color-pink-700: #1e3f5e;
-  --color-pink-800: #122843;
+  --color-pink-50:  #EDF3F8;
+  --color-pink-100: #D3E2EF;
+  --color-pink-200: #AECCE4;
+  --color-pink-300: #84AFCF;
+  --color-pink-400: #5E90B5;
+  --color-pink-500: #3F7299;
+  --color-pink-600: #2F5D80;
+  --color-pink-700: #204462;
+  --color-pink-800: #132B42;
 }
 
-/* ── Blossom (original pink) ── */
-html[data-theme="blossom"] {
-  --background: #fff8fb;
-  --foreground: #4a3b45;
+/* ── Plum ── */
+html[data-theme="plum"] {
+  --background: #EDE8F2;
+  --foreground: #251A30;
 
-  --color-pink-50:  #fff5f9;
-  --color-pink-100: #fde6f0;
-  --color-pink-200: #f9cfe3;
-  --color-pink-300: #f9a8d4;
-  --color-pink-400: #f472b6;
-  --color-pink-500: #ec4899;
-  --color-pink-600: #db2777;
-  --color-pink-700: #be185d;
-  --color-pink-800: #9d174d;
+  --color-pink-50:  #F3EFF8;
+  --color-pink-100: #E2D8EF;
+  --color-pink-200: #CBBCE0;
+  --color-pink-300: #AA96CB;
+  --color-pink-400: #8B72B6;
+  --color-pink-500: #6B50A0;
+  --color-pink-600: #573E87;
+  --color-pink-700: #3E2B64;
+  --color-pink-800: #271A42;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
+  --font-serif: var(--font-lora);
 }
 
 body {
@@ -94,4 +95,13 @@ body {
 
 .animate-slide-up {
   animation: slide-up 0.35s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease both;
 }

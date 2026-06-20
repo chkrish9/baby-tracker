@@ -23,15 +23,22 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
   if (!open) return null;
 
   return (
-    <div ref={overlayRef} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40" onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}>
-      <div className={cn("bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto", className)}>
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 animate-fade-in"
+      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+    >
+      <div className={cn("bg-white rounded-t-3xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-slide-up", className)}>
+        {/* Handle bar */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-foreground/15" />
+        </div>
         {title && (
-          <div className="flex items-center justify-between px-5 py-4 border-b border-pink-100">
-            <h2 className="text-base font-semibold text-foreground">{title}</h2>
-            <button onClick={onClose} className="text-pink-400 hover:text-pink-600 text-lg leading-none">&times;</button>
+          <div className="px-6 pt-3 pb-2">
+            <h2 className="text-xl font-semibold text-foreground font-serif">{title}</h2>
           </div>
         )}
-        <div className="p-5">{children}</div>
+        <div className="px-6 pb-8">{children}</div>
       </div>
     </div>
   );

@@ -22,7 +22,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="fixed bottom-20 left-1/2 -translate-x-1/2 flex flex-col gap-2 z-50 w-full max-w-sm px-4 pointer-events-none">
+      <div className="fixed bottom-28 left-1/2 -translate-x-1/2 flex flex-col gap-2 z-50 w-full max-w-sm px-4 pointer-events-none">
         {toasts.map((t) => (
           <div key={t.id} className={cn("rounded-xl px-4 py-3 text-sm font-medium shadow-md animate-in slide-in-from-bottom-4", colors[t.type])}>
             {t.message}

@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Label } from "@/components/ui/Label";
 
 function LoginForm() {
   const router = useRouter();
@@ -14,7 +13,6 @@ function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -22,30 +20,56 @@ function LoginForm() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const res = await signIn("credentials", { email, password, rememberMe: String(rememberMe), redirect: false });
+    const res = await signIn("credentials", { email, password, rememberMe: "true", redirect: false });
     setLoading(false);
     if (!res?.ok) { setError("Invalid email or password"); return; }
-    if (rememberMe) localStorage.setItem("rm", "1");
-    else sessionStorage.setItem("rm", "1");
+    localStorage.setItem("rm", "1");
     router.push(callbackUrl);
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-pink-100 p-6 space-y-4">
-      {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
-      <div>
-        <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="you@example.com" />
+    <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-sm border border-pink-100/60 p-6 space-y-4">
+      {error && <p className="text-sm text-red-600 bg-red-50 rounded-2xl px-4 py-2.5">{error}</p>}
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-foreground">Email</label>
+        <Input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          autoComplete="email"
+          placeholder="you@example.com"
+        />
       </div>
-      <div>
-        <Label htmlFor="password">Password</Label>
-        <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" placeholder="••••••••" />
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-foreground">Password</label>
+        <Input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          autoComplete="current-password"
+          placeholder="Your password"
+        />
       </div>
-      <div className="flex items-center gap-2">
-        <input id="remember" type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="rounded border-pink-300 text-pink-400 focus:ring-pink-200" />
-        <label htmlFor="remember" className="text-sm text-foreground">Remember me</label>
-      </div>
-      <Button type="submit" loading={loading} className="w-full">Sign in</Button>
+
+      <Button type="submit" loading={loading} className="w-full !py-3 !text-base !rounded-2xl">
+        Sign in
+      </Button>
+
+      <p className="text-center text-xs text-foreground/40">
+        Demo:{" "}
+        <button
+          type="button"
+          onClick={() => { setEmail("demo@littlenotes.app"); setPassword("demo"); }}
+          className="text-pink-500 underline underline-offset-2"
+        >
+          demo@littlenotes.app
+        </button>
+        {" "}/ demo
+      </p>
     </form>
   );
 }
@@ -56,16 +80,18 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="Baby Tracker" width={72} height={72} className="mx-auto mb-2 rounded-2xl" />
-          <h1 className="text-2xl font-bold text-foreground">Baby Tracker</h1>
-          <p className="text-sm text-pink-500 mt-1">Sign in to your account</p>
+          <img src="/logo.svg" alt="Little Notes" width={80} height={80} className="mx-auto mb-4 rounded-3xl" />
+          <h1 className="text-3xl font-bold text-foreground font-serif">Little Notes</h1>
+          <p className="text-sm text-foreground/50 mt-1.5">Gentle tracking for your little one</p>
         </div>
-        <Suspense fallback={<div className="bg-white rounded-2xl shadow-sm border border-pink-100 p-6 h-48" />}>
+
+        <Suspense fallback={<div className="bg-white rounded-3xl shadow-sm border border-pink-100/60 p-6 h-52" />}>
           <LoginForm />
         </Suspense>
-        <p className="text-center text-sm text-pink-500 mt-4">
-          No account?{" "}
-          <Link href="/register" className="font-medium text-pink-600 hover:underline">Create one</Link>
+
+        <p className="text-center text-sm text-foreground/50 mt-5">
+          New here?{" "}
+          <Link href="/register" className="font-semibold text-foreground hover:underline">Create one</Link>
         </p>
       </div>
     </div>
