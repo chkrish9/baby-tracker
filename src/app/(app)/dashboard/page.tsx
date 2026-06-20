@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useBabies } from "@/hooks/useBaby";
 import { Avatar } from "@/components/ui/Avatar";
 import { Spinner } from "@/components/ui/Spinner";
@@ -21,15 +22,28 @@ interface Baby { id: string; name: string; birthDate: string; profilePhoto?: str
 
 export default function DashboardPage() {
   const { data: babies, isLoading } = useBabies();
+  const router = useRouter();
+
+  function handleBack() {
+    const activeBabyId = localStorage.getItem("activeBabyId");
+    if (activeBabyId) {
+      router.push(`/babies/${activeBabyId}`);
+    } else {
+      router.back();
+    }
+  }
 
   return (
     <div className="max-w-lg mx-auto px-4 py-4">
       <div className="flex items-center gap-3 mb-5">
-        <Link href="/dashboard" className="flex items-center justify-center w-9 h-9 rounded-2xl bg-white border border-pink-100/60 text-foreground hover:bg-pink-50 transition-colors">
+        <button
+          onClick={handleBack}
+          className="flex items-center justify-center w-9 h-9 rounded-2xl bg-white border border-pink-100/60 text-foreground hover:bg-pink-50 transition-colors flex-shrink-0"
+        >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 12L6 8l4-4" />
           </svg>
-        </Link>
+        </button>
         <h1 className="text-2xl font-bold text-foreground font-serif">Your babies</h1>
       </div>
 
@@ -43,9 +57,7 @@ export default function DashboardPage() {
         {babies?.map((baby: Baby, i: number) => (
           <Link key={baby.id} href={`/babies/${baby.id}`}>
             <div className="flex items-center gap-4 bg-white rounded-2xl border border-pink-100/60 p-4 hover:border-pink-200 transition-colors cursor-pointer">
-              <div className="relative">
-                <Avatar src={baby.profilePhoto ? `/api/files/${baby.profilePhoto}` : undefined} name={baby.name} size={52} colorIndex={i} />
-              </div>
+              <Avatar src={baby.profilePhoto ? `/api/files/${baby.profilePhoto}` : undefined} name={baby.name} size={52} colorIndex={i} />
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-foreground">{baby.name}</p>
                 <p className="text-sm text-foreground/50">{ageLabel(baby.birthDate)}</p>

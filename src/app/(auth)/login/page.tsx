@@ -59,17 +59,6 @@ function LoginForm() {
         Sign in
       </Button>
 
-      <p className="text-center text-xs text-foreground/40">
-        Demo:{" "}
-        <button
-          type="button"
-          onClick={() => { setEmail("demo@littlenotes.app"); setPassword("demo"); }}
-          className="text-pink-500 underline underline-offset-2"
-        >
-          demo@littlenotes.app
-        </button>
-        {" "}/ demo
-      </p>
     </form>
   );
 }

@@ -1,19 +1,20 @@
 {
   "id": "/",
-  "name": "Baby Tracker",
-  "short_name": "BabyTrack",
-  "description": "Track feedings, diaper changes, and milestones for your baby",
+  "name": "Little Notes",
+  "short_name": "Little Notes",
+  "description": "Gentle tracking for your little one",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui", "browser"],
-  "background_color": "#fff8fb",
-  "theme_color": "#a89b8c",
+  "background_color": "#EAE6DC",
+  "theme_color": "#4A6741",
   "orientation": "portrait-primary",
   "categories": ["health", "lifestyle", "parenting"],
   "lang": "en-US",
   "dir": "ltr",
   "icons": [
+    { "src": "/icons/icon-32.png",   "sizes": "32x32",   "type": "image/png" },
     { "src": "/icons/icon-72.png",   "sizes": "72x72",   "type": "image/png" },
     { "src": "/icons/icon-96.png",   "sizes": "96x96",   "type": "image/png" },
     { "src": "/icons/icon-128.png",  "sizes": "128x128", "type": "image/png" },
@@ -49,7 +50,7 @@
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Baby Tracker dashboard"
+      "label": "Little Notes dashboard"
     }
   ]
 }

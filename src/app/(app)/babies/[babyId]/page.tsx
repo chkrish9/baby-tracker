@@ -196,7 +196,7 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
       )}
 
       {/* Doctor visit card */}
-      <Link href={`/babies/${babyId}/documents`}>
+      <Link href={`/babies/${babyId}/doctor-visit`}>
         <div className="flex items-center gap-3 bg-pink-500 rounded-2xl p-4 text-white cursor-pointer hover:bg-pink-600 transition-colors">
           <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/20 flex-shrink-0">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
