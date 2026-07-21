@@ -24,30 +24,40 @@
 
 ### Authentication
 - Register and sign in with email and password
-- **Remember me** — session persists across browser restarts; clears on browser close without it
+- **Remember me** — checkbox on sign in and registration; checked sessions persist across browser restarts (`localStorage`), unchecked sessions clear on browser close (`sessionStorage`)
 - JWT-based sessions with 30-day expiry
 
 ### Baby Management
 - Add multiple babies to one account
 - Tap a baby's avatar to upload or change their profile photo
 - Age is calculated automatically from date of birth
-- View all co-parents linked to a baby
+- Dashboard lands returning users on their last-active baby instead of the baby list; the list itself only shows once at least one baby exists
 
-### Feeding Logs
-- Log breast (left / right), bottle, or solid food sessions
-- Record amount (ml) for bottle/solid or duration (minutes) for breastfeeding
+### Feeding & Diaper Logs
+- Log breast (left / right), bottle, or solid food sessions; log wet, dirty, mixed, or dry diaper changes
+- **Editable date & time** on every entry — defaults to now, can be backdated
+- **Units** — bottle/solid amount in ml or oz, breastfeeding duration in minutes or hours, selectable per entry
 - Optional notes per entry
-- Full history with individual delete
+- **Edit or delete** any past entry
+- **Flag for the doctor** — flag a diaper entry to pull it into that baby's next doctor visit prep list (see [Doctor Visit Prep](#doctor-visit-prep))
+- Full history, grouped by day
 
-### Diaper Logs
-- Log wet, dirty, wet + dirty, or dry changes
-- Optional notes per entry
-- Full history with individual delete
+### Dashboard Trends
+- D3-powered stacked bar charts on each baby's dashboard showing feedings and diaper changes broken down by type
+- Date range selector — **Today**, **Yesterday**, **Last 7 days**, **Last 30 days** — updates both charts together
+- Hover any bar segment for an exact count; "Show as table" gives a plain-text breakdown per chart
 
 ### Photo Gallery
 - Upload multiple photos per baby
 - Photos are stored privately — only accessible to authenticated parents
+- **Flag a photo for the doctor** — tap the flag on any photo to pull it into that baby's next doctor visit prep list
 - Delete photos individually
+
+### Doctor Visit Prep
+- Track **appointments** — add a visit date + note; the dashboard surfaces the nearest upcoming ("Next visit") and most recent past ("Previous visit") automatically
+- Tap into any appointment (past or future) for a dedicated page scoped to that visit
+- **Questions for the doctor** — jot down a question any time; check it off once asked. New questions and newly-flagged photos/diaper notes attach automatically to the next upcoming appointment
+- Each visit's page shows its own questions, flagged photos, flagged diaper notes, and the baby's medical documents in one place
 
 ### Medical Documents
 - Upload PDFs, images, and Word documents (`.pdf`, `.jpg`, `.png`, `.webp`, `.doc`, `.docx`)
@@ -91,6 +101,7 @@
 | File Storage | Local filesystem (`./uploads/`), served via authenticated API |
 | Styling | Tailwind CSS v4 |
 | Data Fetching | SWR |
+| Charts | D3.js |
 | Containerisation | Docker + Docker Compose |
 | PWA | Custom service worker + Web App Manifest |
 
@@ -245,12 +256,17 @@ baby-tracker/
     │   │   ├── dashboard/      # Baby list
     │   │   ├── babies/
     │   │   │   ├── new/        # Add baby form
-    │   │   │   └── [babyId]/   # Profile, feeding, diapers, photos, documents, invite
+    │   │   │   └── [babyId]/   # Profile (+ trend charts), feeding, diapers, photos, documents, invite
+    │   │   │       └── doctor-visit/
+    │   │   │           └── [appointmentId]/  # Per-visit questions, flagged items, documents
     │   │   └── settings/       # Theme, profile photo, name, password
     │   ├── api/
     │   │   ├── auth/           # NextAuth handler
     │   │   ├── register/       # User registration
     │   │   ├── babies/         # Baby CRUD + feeding/diaper/photo/document/parent routes
+    │   │   │   └── [babyId]/
+    │   │   │       ├── appointments/    # Doctor appointment CRUD
+    │   │   │       └── doctor-notes/    # "Questions for the doctor" CRUD
     │   │   ├── files/          # Authenticated file serving
     │   │   ├── invites/        # Invite accept
     │   │   └── user/           # Settings, profile photo, password
@@ -260,12 +276,15 @@ baby-tracker/
     │   ├── SessionProvider.tsx
     │   ├── ui/                 # Button, Input, Card, Avatar, Badge, Modal, Toast, Spinner, ThemeSwitcher
     │   ├── layout/             # Navbar (with profile dropdown), BottomNav, PageHeader
-    │   └── baby/               # BabyCard
+    │   ├── baby/               # BabyCard
+    │   ├── charts/             # WeeklyStackedBarChart (D3-backed trend charts)
+    │   └── doctor-visit/       # VisitPrep — questions/flagged-photos/flagged-diapers, shared across visit pages
     ├── hooks/                  # useBaby, useFeeding, useDiapers
     ├── lib/
     │   ├── db.ts               # Prisma client singleton
     │   ├── upload.ts           # saveFile / deleteFile helpers
     │   ├── auth-helpers.ts     # assertParentOf, unauthorized, forbidden, notFound
+    │   ├── appointments.ts     # findNextAppointmentId — auto-links flags/questions to the next visit
     │   ├── validation.ts       # Zod schemas for all API inputs
     │   └── utils.ts            # cn(), formatBytes(), addDays()
     └── types/
