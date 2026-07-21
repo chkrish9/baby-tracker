@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "FeedingLog" ALTER COLUMN "duration" SET DATA TYPE DOUBLE PRECISION;

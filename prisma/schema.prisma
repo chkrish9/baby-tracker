@@ -80,8 +80,9 @@ model FeedingLog {
   id        String      @id @default(cuid())
   babyId    String
   type      FeedingType
-  amount    Float? // ml (bottle/solid)
-  duration  Int? // minutes (breastfeeding)
+  amount    Float? // bottle/solid, see `unit`
+  duration  Float? // breastfeeding, see `unit`
+  unit      String? // "ml" | "oz" for amount, "min" | "hr" for duration
   notes     String?
   loggedAt  DateTime    @default(now())
   createdAt DateTime    @default(now())

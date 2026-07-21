@@ -19,7 +19,8 @@ export const babyUpdateSchema = z.object({
 export const feedingCreateSchema = z.object({
   type: z.enum(["BREAST_LEFT", "BREAST_RIGHT", "BOTTLE", "SOLID"]),
   amount: z.coerce.number().positive().optional().nullable(),
-  duration: z.coerce.number().int().positive().optional().nullable(),
+  duration: z.coerce.number().positive().optional().nullable(),
+  unit: z.enum(["ml", "oz", "min", "hr"]).optional().nullable(),
   notes: z.string().trim().max(1000).optional().nullable(),
   loggedAt: z.coerce.date().optional(),
 });

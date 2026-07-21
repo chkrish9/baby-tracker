@@ -30,6 +30,16 @@ const DIAPER_LABELS: Record<string, string> = {
   WET: "Wet", DIRTY: "Dirty", BOTH: "Mixed", DRY: "Dry"
 };
 
+const AMOUNT_UNITS = [
+  { value: "ml", label: "ml" },
+  { value: "oz", label: "oz" },
+];
+
+const DURATION_UNITS = [
+  { value: "min", label: "min" },
+  { value: "hr", label: "hr" },
+];
+
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
@@ -41,6 +51,34 @@ function timeAgo(iso: string) {
   const h = Math.floor(diff / 3600);
   const m = Math.floor((diff % 3600) / 60);
   return m > 0 ? `${h}h ${m}m ago` : `${h}h ago`;
+}
+
+function pad(n: number) {
+  return n.toString().padStart(2, "0");
+}
+
+function nowDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function nowTimeStr() {
+  const d = new Date();
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function combineDateTime(dateStr: string, timeStr: string) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const [h, min] = timeStr.split(":").map(Number);
+  return new Date(y, m - 1, d, h, min).toISOString();
+}
+
+function splitDateTime(iso: string) {
+  const d = new Date(iso);
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
 }
 
 function dayLabel(iso: string) {
@@ -77,7 +115,15 @@ function TrashIcon() {
   );
 }
 
-interface FeedingLog { id: string; type: string; amount?: number | null; duration?: number | null; notes?: string | null; loggedAt: string; }
+function EditIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11.5 2.5a1.5 1.5 0 012.12 2.12l-7.5 7.5-3 .88.88-3 7.5-7.5z" />
+    </svg>
+  );
+}
+
+interface FeedingLog { id: string; type: string; amount?: number | null; duration?: number | null; unit?: string | null; notes?: string | null; loggedAt: string; }
 interface DiaperLog { id: string; type: string; notes?: string | null; loggedAt: string; }
 
 export default function LogsPage({ params }: { params: Promise<{ babyId: string }> }) {
@@ -87,17 +133,25 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
   const [tab, setTab] = useState<"feeding" | "diaper">("feeding");
   const [showFeedModal, setShowFeedModal] = useState(false);
   const [showDiaperModal, setShowDiaperModal] = useState(false);
+  const [editingFeedId, setEditingFeedId] = useState<string | null>(null);
+  const [editingDiaperId, setEditingDiaperId] = useState<string | null>(null);
 
   // Feeding form state
   const [feedType, setFeedType] = useState("BOTTLE");
   const [feedAmount, setFeedAmount] = useState("");
   const [feedDuration, setFeedDuration] = useState("");
+  const [feedAmountUnit, setFeedAmountUnit] = useState("ml");
+  const [feedDurationUnit, setFeedDurationUnit] = useState("min");
   const [feedNotes, setFeedNotes] = useState("");
+  const [feedDate, setFeedDate] = useState(nowDateStr);
+  const [feedTime, setFeedTime] = useState(nowTimeStr);
   const [feedLoading, setFeedLoading] = useState(false);
 
   // Diaper form state
   const [diaperType, setDiaperType] = useState("WET");
   const [diaperNotes, setDiaperNotes] = useState("");
+  const [diaperDate, setDiaperDate] = useState(nowDateStr);
+  const [diaperTime, setDiaperTime] = useState(nowTimeStr);
   const [diaperLoading, setDiaperLoading] = useState(false);
 
   const { data: feedings, isLoading: feedLoading2 } = useFeedings(babyId);
@@ -115,38 +169,68 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
     else toast("Failed to delete", "error");
   }
 
+  function handleEditFeed(log: FeedingLog) {
+    setEditingFeedId(log.id);
+    setFeedType(log.type);
+    setFeedAmount(log.amount != null ? String(log.amount) : "");
+    setFeedDuration(log.duration != null ? String(log.duration) : "");
+    setFeedAmountUnit(log.amount != null ? (log.unit ?? "ml") : "ml");
+    setFeedDurationUnit(log.duration != null ? (log.unit ?? "min") : "min");
+    setFeedNotes(log.notes ?? "");
+    const { date, time } = splitDateTime(log.loggedAt);
+    setFeedDate(date); setFeedTime(time);
+    setShowFeedModal(true);
+  }
+
+  function handleEditDiaper(log: DiaperLog) {
+    setEditingDiaperId(log.id);
+    setDiaperType(log.type);
+    setDiaperNotes(log.notes ?? "");
+    const { date, time } = splitDateTime(log.loggedAt);
+    setDiaperDate(date); setDiaperTime(time);
+    setShowDiaperModal(true);
+  }
+
   async function handleLogFeed(e: React.FormEvent) {
     e.preventDefault();
     setFeedLoading(true);
-    const body: Record<string, unknown> = { type: feedType };
+    const body: Record<string, unknown> = { type: feedType, amount: null, duration: null, unit: null };
     const showAmount = feedType === "BOTTLE" || feedType === "SOLID";
     const showDuration = feedType === "BREAST_LEFT" || feedType === "BREAST_RIGHT";
-    if (showAmount && feedAmount) body.amount = parseFloat(feedAmount);
-    if (showDuration && feedDuration) body.duration = parseInt(feedDuration);
+    if (showAmount && feedAmount) { body.amount = parseFloat(feedAmount); body.unit = feedAmountUnit; }
+    if (showDuration && feedDuration) { body.duration = parseFloat(feedDuration); body.unit = feedDurationUnit; }
     if (feedNotes) body.notes = feedNotes;
-    const res = await fetch(`/api/babies/${babyId}/feeding`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    body.loggedAt = combineDateTime(feedDate, feedTime);
+    const url = editingFeedId ? `/api/babies/${babyId}/feeding/${editingFeedId}` : `/api/babies/${babyId}/feeding`;
+    const res = await fetch(url, { method: editingFeedId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setFeedLoading(false);
     if (!res.ok) { toast("Failed to log", "error"); return; }
     await mutate(`/api/babies/${babyId}/feeding`);
     await mutate(`/api/babies/${babyId}`);
-    toast("Feeding logged!", "success");
+    toast(editingFeedId ? "Feeding updated!" : "Feeding logged!", "success");
     setShowFeedModal(false);
+    setEditingFeedId(null);
     setFeedAmount(""); setFeedDuration(""); setFeedNotes(""); setFeedType("BOTTLE");
+    setFeedDate(nowDateStr()); setFeedTime(nowTimeStr());
   }
 
   async function handleLogDiaper(e: React.FormEvent) {
     e.preventDefault();
     setDiaperLoading(true);
     const body: Record<string, unknown> = { type: diaperType };
-    if (diaperNotes) body.notes = diaperNotes;
-    const res = await fetch(`/api/babies/${babyId}/diapers`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    body.notes = diaperNotes || null;
+    body.loggedAt = combineDateTime(diaperDate, diaperTime);
+    const url = editingDiaperId ? `/api/babies/${babyId}/diapers/${editingDiaperId}` : `/api/babies/${babyId}/diapers`;
+    const res = await fetch(url, { method: editingDiaperId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setDiaperLoading(false);
     if (!res.ok) { toast("Failed to log", "error"); return; }
     await mutate(`/api/babies/${babyId}/diapers`);
     await mutate(`/api/babies/${babyId}`);
-    toast("Diaper logged!", "success");
+    toast(editingDiaperId ? "Diaper updated!" : "Diaper logged!", "success");
     setShowDiaperModal(false);
+    setEditingDiaperId(null);
     setDiaperNotes(""); setDiaperType("WET");
+    setDiaperDate(nowDateStr()); setDiaperTime(nowTimeStr());
   }
 
   // Group logs by day
@@ -198,7 +282,19 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
         </h1>
         <Button
           size="sm"
-          onClick={() => tab === "feeding" ? setShowFeedModal(true) : setShowDiaperModal(true)}
+          onClick={() => {
+            if (tab === "feeding") {
+              setEditingFeedId(null);
+              setFeedAmount(""); setFeedDuration(""); setFeedNotes(""); setFeedType("BOTTLE");
+              setFeedDate(nowDateStr()); setFeedTime(nowTimeStr());
+              setShowFeedModal(true);
+            } else {
+              setEditingDiaperId(null);
+              setDiaperNotes(""); setDiaperType("WET");
+              setDiaperDate(nowDateStr()); setDiaperTime(nowTimeStr());
+              setShowDiaperModal(true);
+            }
+          }}
         >
           + {tab === "feeding" ? "Log feed" : "Log diaper"}
         </Button>
@@ -228,13 +324,16 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground text-sm">{FEED_LABELS[log.type] ?? log.type}</p>
                     <p className="text-xs text-foreground/50 truncate">
-                      {[log.amount && `${log.amount} ml`, log.duration && `${log.duration} min`, log.notes].filter(Boolean).join(" · ")}
+                      {[log.amount && `${log.amount} ${log.unit ?? "ml"}`, log.duration && `${log.duration} ${log.unit ?? "min"}`, log.notes].filter(Boolean).join(" · ")}
                     </p>
                   </div>
                   <div className="text-right flex-shrink-0 mr-2">
                     <p className="text-sm font-medium text-foreground">{formatTime(log.loggedAt)}</p>
                     <p className="text-xs text-foreground/40">{timeAgo(log.loggedAt)}</p>
                   </div>
+                  <button onClick={() => handleEditFeed(log)} className="text-foreground/20 hover:text-foreground/60 transition-colors flex-shrink-0">
+                    <EditIcon />
+                  </button>
                   <button onClick={() => handleDeleteFeed(log.id)} className="text-foreground/20 hover:text-red-400 transition-colors flex-shrink-0">
                     <TrashIcon />
                   </button>
@@ -261,6 +360,9 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
                     <p className="text-sm font-medium text-foreground">{formatTime(log.loggedAt)}</p>
                     <p className="text-xs text-foreground/40">{timeAgo(log.loggedAt)}</p>
                   </div>
+                  <button onClick={() => handleEditDiaper(log)} className="text-foreground/20 hover:text-foreground/60 transition-colors flex-shrink-0">
+                    <EditIcon />
+                  </button>
                   <button onClick={() => handleDeleteDiaper(log.id)} className="text-foreground/20 hover:text-red-400 transition-colors flex-shrink-0">
                     <TrashIcon />
                   </button>
@@ -272,7 +374,7 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
       </div>
 
       {/* Log feeding modal */}
-      <Modal open={showFeedModal} onClose={() => setShowFeedModal(false)} title="Log a feeding">
+      <Modal open={showFeedModal} onClose={() => { setShowFeedModal(false); setEditingFeedId(null); }} title={editingFeedId ? "Edit feeding" : "Log a feeding"}>
         <form onSubmit={handleLogFeed} className="space-y-4 mt-2">
           <div>
             <p className="text-sm font-medium text-foreground mb-2">Type</p>
@@ -288,15 +390,43 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
           {(feedType === "BOTTLE" || feedType === "SOLID") && (
             <div>
               <p className="text-sm font-medium text-foreground mb-2">Amount</p>
-              <Input type="number" min="0" step="0.1" value={feedAmount} onChange={(e) => setFeedAmount(e.target.value)} placeholder="e.g. 120 ml" />
+              <div className="flex gap-2">
+                <Input type="number" min="0" step="0.1" value={feedAmount} onChange={(e) => setFeedAmount(e.target.value)} placeholder="e.g. 120" className="flex-1" />
+                <select
+                  value={feedAmountUnit}
+                  onChange={(e) => setFeedAmountUnit(e.target.value)}
+                  className="rounded-2xl border border-pink-100 bg-white px-3 py-2.5 text-sm text-foreground focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                >
+                  {AMOUNT_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
+                </select>
+              </div>
             </div>
           )}
           {(feedType === "BREAST_LEFT" || feedType === "BREAST_RIGHT") && (
             <div>
-              <p className="text-sm font-medium text-foreground mb-2">Duration (min)</p>
-              <Input type="number" min="0" value={feedDuration} onChange={(e) => setFeedDuration(e.target.value)} placeholder="e.g. 15" />
+              <p className="text-sm font-medium text-foreground mb-2">Duration</p>
+              <div className="flex gap-2">
+                <Input type="number" min="0" step="any" value={feedDuration} onChange={(e) => setFeedDuration(e.target.value)} placeholder="e.g. 15" className="flex-1" />
+                <select
+                  value={feedDurationUnit}
+                  onChange={(e) => setFeedDurationUnit(e.target.value)}
+                  className="rounded-2xl border border-pink-100 bg-white px-3 py-2.5 text-sm text-foreground focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                >
+                  {DURATION_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
+                </select>
+              </div>
             </div>
           )}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground mb-2">Date</p>
+              <Input type="date" value={feedDate} onChange={(e) => setFeedDate(e.target.value)} required />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground mb-2">Time</p>
+              <Input type="time" value={feedTime} onChange={(e) => setFeedTime(e.target.value)} required />
+            </div>
+          </div>
           <div>
             <p className="text-sm font-medium text-foreground mb-2">Note <span className="text-foreground/40 font-normal">(optional)</span></p>
             <textarea
@@ -307,12 +437,12 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
               className="block w-full rounded-2xl border border-pink-100 bg-white px-4 py-2.5 text-sm text-foreground placeholder:text-foreground/30 focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
             />
           </div>
-          <Button type="submit" loading={feedLoading} className="w-full !py-3">Save feeding</Button>
+          <Button type="submit" loading={feedLoading} className="w-full !py-3">{editingFeedId ? "Update feeding" : "Save feeding"}</Button>
         </form>
       </Modal>
 
       {/* Log diaper modal */}
-      <Modal open={showDiaperModal} onClose={() => setShowDiaperModal(false)} title="Log a diaper change">
+      <Modal open={showDiaperModal} onClose={() => { setShowDiaperModal(false); setEditingDiaperId(null); }} title={editingDiaperId ? "Edit diaper change" : "Log a diaper change"}>
         <form onSubmit={handleLogDiaper} className="space-y-4 mt-2">
           <div>
             <p className="text-sm font-medium text-foreground mb-2">Type</p>
@@ -325,6 +455,16 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
               ))}
             </div>
           </div>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground mb-2">Date</p>
+              <Input type="date" value={diaperDate} onChange={(e) => setDiaperDate(e.target.value)} required />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground mb-2">Time</p>
+              <Input type="time" value={diaperTime} onChange={(e) => setDiaperTime(e.target.value)} required />
+            </div>
+          </div>
           <div>
             <p className="text-sm font-medium text-foreground mb-2">Note <span className="text-foreground/40 font-normal">(optional)</span></p>
             <textarea
@@ -335,7 +475,7 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
               className="block w-full rounded-2xl border border-pink-100 bg-white px-4 py-2.5 text-sm text-foreground placeholder:text-foreground/30 focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
             />
           </div>
-          <Button type="submit" loading={diaperLoading} className="w-full !py-3">Save diaper</Button>
+          <Button type="submit" loading={diaperLoading} className="w-full !py-3">{editingDiaperId ? "Update diaper" : "Save diaper"}</Button>
         </form>
       </Modal>
     </div>
