@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/Input";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  const callbackUrl = searchParams.get("callbackUrl");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,12 +22,23 @@ function LoginForm() {
     setError("");
     setLoading(true);
     const res = await signIn("credentials", { email, password, rememberMe: String(rememberMe), redirect: false });
-    setLoading(false);
-    if (!res?.ok) { setError("Invalid email or password"); return; }
+    if (res?.error) { setLoading(false); setError("Invalid email or password"); return; }
     localStorage.removeItem("rm");
     sessionStorage.removeItem("rm");
     (rememberMe ? localStorage : sessionStorage).setItem("rm", "1");
-    router.push(callbackUrl);
+
+    if (callbackUrl) { router.push(callbackUrl); return; }
+
+    const babiesRes = await fetch("/api/babies");
+    const babies = babiesRes.ok ? await babiesRes.json() : [];
+    setLoading(false);
+    if (babies.length > 0) {
+      const activeBabyId = localStorage.getItem("activeBabyId");
+      const target = babies.find((b: { id: string }) => b.id === activeBabyId) ?? babies[0];
+      router.push(`/babies/${target.id}`);
+    } else {
+      router.push("/dashboard");
+    }
   }
 
   return (

@@ -36,14 +36,16 @@ export default function DashboardPage() {
   return (
     <div className="max-w-lg mx-auto px-4 py-4">
       <div className="flex items-center gap-3 mb-5">
-        <button
-          onClick={handleBack}
-          className="flex items-center justify-center w-9 h-9 rounded-2xl bg-white border border-pink-100/60 text-foreground hover:bg-pink-50 transition-colors flex-shrink-0"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 12L6 8l4-4" />
-          </svg>
-        </button>
+        {!isLoading && babies?.length > 0 && (
+          <button
+            onClick={handleBack}
+            className="flex items-center justify-center w-9 h-9 rounded-2xl bg-white border border-pink-100/60 text-foreground hover:bg-pink-50 transition-colors flex-shrink-0"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 12L6 8l4-4" />
+            </svg>
+          </button>
+        )}
         <h1 className="text-2xl font-bold text-foreground font-serif">Your babies</h1>
       </div>
 

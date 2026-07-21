@@ -28,7 +28,7 @@ export default function RegisterPage() {
     }
     const signInRes = await signIn("credentials", { email, password, rememberMe: String(rememberMe), redirect: false });
     setLoading(false);
-    if (!signInRes?.ok) { router.push("/login"); return; }
+    if (signInRes?.error) { router.push("/login"); return; }
     localStorage.removeItem("rm");
     sessionStorage.removeItem("rm");
     (rememberMe ? localStorage : sessionStorage).setItem("rm", "1");
