@@ -31,9 +31,28 @@ export const diaperCreateSchema = z.object({
   type: z.enum(["WET", "DIRTY", "BOTH", "DRY"]),
   notes: z.string().trim().max(1000).optional().nullable(),
   loggedAt: z.coerce.date().optional(),
+  flagged: z.boolean().optional(),
+  appointmentId: z.string().optional().nullable(),
 });
 
 export const diaperUpdateSchema = diaperCreateSchema.partial();
+
+export const doctorNoteCreateSchema = z.object({
+  question: z.string().trim().min(1).max(1000),
+  appointmentId: z.string().optional().nullable(),
+});
+
+export const doctorNoteUpdateSchema = z.object({
+  question: z.string().trim().min(1).max(1000).optional(),
+  answered: z.boolean().optional(),
+});
+
+export const appointmentCreateSchema = z.object({
+  date: z.coerce.date(),
+  notes: z.string().trim().max(1000).optional().nullable(),
+});
+
+export const appointmentUpdateSchema = appointmentCreateSchema.partial();
 
 export const inviteCreateSchema = z.object({
   email: z.string().email(),
@@ -41,6 +60,8 @@ export const inviteCreateSchema = z.object({
 
 export const photoUpdateSchema = z.object({
   caption: z.string().trim().max(500).optional().nullable(),
+  flagged: z.boolean().optional(),
+  appointmentId: z.string().optional().nullable(),
 });
 
 export const userSettingsSchema = z.object({

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSession, unauthorized, forbidden, notFound, assertParentOf } from "@/lib/auth-helpers";
 import { deleteFile } from "@/lib/upload";
 import { photoUpdateSchema } from "@/lib/validation";
+import { findNextAppointmentId } from "@/lib/appointments";
 
 type Params = { params: Promise<{ babyId: string; photoId: string }> };
 
@@ -19,7 +20,14 @@ export async function PATCH(req: Request, { params }: Params) {
   const existing = await db.babyPhoto.findUnique({ where: { id: photoId } });
   if (!existing || existing.babyId !== babyId) return notFound();
 
-  const photo = await db.babyPhoto.update({ where: { id: photoId }, data: parsed.data });
+  const data = { ...parsed.data };
+  if (data.flagged === true && data.appointmentId === undefined) {
+    data.appointmentId = await findNextAppointmentId(babyId);
+  } else if (data.flagged === false && data.appointmentId === undefined) {
+    data.appointmentId = null;
+  }
+
+  const photo = await db.babyPhoto.update({ where: { id: photoId }, data });
   return NextResponse.json(photo);
 }
 

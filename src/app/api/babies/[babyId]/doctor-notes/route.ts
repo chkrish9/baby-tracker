@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession, unauthorized, forbidden, assertParentOf } from "@/lib/auth-helpers";
-import { diaperCreateSchema } from "@/lib/validation";
+import { doctorNoteCreateSchema } from "@/lib/validation";
+import { findNextAppointmentId } from "@/lib/appointments";
 
 type Params = { params: Promise<{ babyId: string }> };
 
@@ -13,14 +14,13 @@ export async function GET(req: Request, { params }: Params) {
   try { await assertParentOf(session.user.id, babyId); } catch { return forbidden(); }
 
   const { searchParams } = new URL(req.url);
-  const where: Prisma.DiaperLogWhereInput = { babyId };
-  if (searchParams.get("flagged") === "true") where.flagged = true;
+  const where: Prisma.DoctorNoteWhereInput = { babyId };
   const appointmentId = searchParams.get("appointmentId");
   if (appointmentId === "unassigned") where.appointmentId = null;
   else if (appointmentId) where.appointmentId = appointmentId;
 
-  const logs = await db.diaperLog.findMany({ where, orderBy: { loggedAt: "desc" }, take: 500 });
-  return NextResponse.json(logs);
+  const notes = await db.doctorNote.findMany({ where, orderBy: { createdAt: "desc" } });
+  return NextResponse.json(notes);
 }
 
 export async function POST(req: Request, { params }: Params) {
@@ -30,9 +30,14 @@ export async function POST(req: Request, { params }: Params) {
   try { await assertParentOf(session.user.id, babyId); } catch { return forbidden(); }
 
   const body = await req.json().catch(() => null);
-  const parsed = diaperCreateSchema.safeParse(body);
+  const parsed = doctorNoteCreateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid input", issues: parsed.error.issues }, { status: 400 });
 
-  const log = await db.diaperLog.create({ data: { babyId, ...parsed.data } });
-  return NextResponse.json(log, { status: 201 });
+  const data = { ...parsed.data };
+  if (data.appointmentId === undefined) {
+    data.appointmentId = await findNextAppointmentId(babyId);
+  }
+
+  const note = await db.doctorNote.create({ data: { babyId, ...data } });
+  return NextResponse.json(note, { status: 201 });
 }

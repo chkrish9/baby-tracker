@@ -1,17 +1,25 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession, unauthorized, forbidden, assertParentOf } from "@/lib/auth-helpers";
 import { saveFile } from "@/lib/upload";
 
 type Params = { params: Promise<{ babyId: string }> };
 
-export async function GET(_req: Request, { params }: Params) {
+export async function GET(req: Request, { params }: Params) {
   const session = await getSession();
   if (!session?.user?.id) return unauthorized();
   const { babyId } = await params;
   try { await assertParentOf(session.user.id, babyId); } catch { return forbidden(); }
 
-  const photos = await db.babyPhoto.findMany({ where: { babyId }, orderBy: { takenAt: "desc" } });
+  const { searchParams } = new URL(req.url);
+  const where: Prisma.BabyPhotoWhereInput = { babyId };
+  if (searchParams.get("flagged") === "true") where.flagged = true;
+  const appointmentId = searchParams.get("appointmentId");
+  if (appointmentId === "unassigned") where.appointmentId = null;
+  else if (appointmentId) where.appointmentId = appointmentId;
+
+  const photos = await db.babyPhoto.findMany({ where, orderBy: { takenAt: "desc" } });
   return NextResponse.json(photos);
 }
 

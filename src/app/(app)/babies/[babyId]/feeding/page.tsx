@@ -123,8 +123,17 @@ function EditIcon() {
   );
 }
 
+function FlagIcon({ filled }: { filled?: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 2v12" />
+      <path d="M4 2.5h7l-1.5 2.5L11 7.5H4" />
+    </svg>
+  );
+}
+
 interface FeedingLog { id: string; type: string; amount?: number | null; duration?: number | null; unit?: string | null; notes?: string | null; loggedAt: string; }
-interface DiaperLog { id: string; type: string; notes?: string | null; loggedAt: string; }
+interface DiaperLog { id: string; type: string; notes?: string | null; flagged?: boolean; loggedAt: string; }
 
 export default function LogsPage({ params }: { params: Promise<{ babyId: string }> }) {
   const { babyId } = use(params);
@@ -167,6 +176,18 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
     const res = await fetch(`/api/babies/${babyId}/diapers/${logId}`, { method: "DELETE" });
     if (res.ok) { mutate(`/api/babies/${babyId}/diapers`); toast("Entry deleted", "success"); }
     else toast("Failed to delete", "error");
+  }
+
+  async function handleToggleFlagDiaper(log: DiaperLog) {
+    const res = await fetch(`/api/babies/${babyId}/diapers/${log.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ flagged: !log.flagged }),
+    });
+    if (res.ok) {
+      mutate(`/api/babies/${babyId}/diapers`);
+      toast(log.flagged ? "Unflagged" : "Flagged for the doctor", "success");
+    } else toast("Failed to update", "error");
   }
 
   function handleEditFeed(log: FeedingLog) {
@@ -353,13 +374,23 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
                     <DiaperIcon />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground text-sm">{DIAPER_LABELS[log.type] ?? log.type}</p>
+                    <p className="font-medium text-foreground text-sm flex items-center gap-1.5">
+                      {DIAPER_LABELS[log.type] ?? log.type}
+                      {log.flagged && <span className="text-pink-500"><FlagIcon filled /></span>}
+                    </p>
                     <p className="text-xs text-foreground/50 truncate">{log.notes ?? "No note"}</p>
                   </div>
                   <div className="text-right flex-shrink-0 mr-2">
                     <p className="text-sm font-medium text-foreground">{formatTime(log.loggedAt)}</p>
                     <p className="text-xs text-foreground/40">{timeAgo(log.loggedAt)}</p>
                   </div>
+                  <button
+                    onClick={() => handleToggleFlagDiaper(log)}
+                    className={`transition-colors flex-shrink-0 ${log.flagged ? "text-pink-500 hover:text-pink-600" : "text-foreground/20 hover:text-foreground/60"}`}
+                    aria-label={log.flagged ? "Unflag for the doctor" : "Flag for the doctor"}
+                  >
+                    <FlagIcon filled={log.flagged} />
+                  </button>
                   <button onClick={() => handleEditDiaper(log)} className="text-foreground/20 hover:text-foreground/60 transition-colors flex-shrink-0">
                     <EditIcon />
                   </button>

@@ -9,12 +9,21 @@ import { formatBytes } from "@/lib/utils";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 interface Doc { id: string; path: string; originalName: string; size: number; mimeType: string; uploadedAt: string; }
-interface Photo { id: string; path: string; filename: string; size: number; caption?: string | null; takenAt: string; }
+interface Photo { id: string; path: string; filename: string; size: number; caption?: string | null; flagged: boolean; takenAt: string; }
 
 function TrashIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 4h10M6 4V2.5h4V4M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" />
+    </svg>
+  );
+}
+
+function FlagIcon({ filled }: { filled?: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 2v12" />
+      <path d="M4 2.5h7l-1.5 2.5L11 7.5H4" />
     </svg>
   );
 }
@@ -69,6 +78,18 @@ export default function DocumentsPage({ params }: { params: Promise<{ babyId: st
     const res = await fetch(`/api/babies/${babyId}/photos/${photoId}`, { method: "DELETE" });
     if (res.ok) { await mutate(`/api/babies/${babyId}/photos`); toast("Photo deleted", "success"); }
     else toast("Failed to delete", "error");
+  }
+
+  async function handleToggleFlag(photo: Photo) {
+    const res = await fetch(`/api/babies/${babyId}/photos/${photo.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ flagged: !photo.flagged }),
+    });
+    if (res.ok) {
+      await mutate(`/api/babies/${babyId}/photos`);
+      toast(photo.flagged ? "Unflagged" : "Flagged for the doctor", "success");
+    } else toast("Failed to update", "error");
   }
 
   async function handleDeleteDoc(docId: string) {
@@ -136,10 +157,24 @@ export default function DocumentsPage({ params }: { params: Promise<{ babyId: st
                   <div key={photo.id} className="relative group rounded-2xl overflow-hidden bg-pink-50 border border-pink-100/60 aspect-square">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={`/api/files/${photo.path}`} alt={photo.filename} className="object-cover w-full h-full" />
+                    {photo.flagged && (
+                      <div className="absolute top-2 left-2 bg-pink-500 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-sm">
+                        <FlagIcon filled />
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-end justify-between p-2">
-                      <button onClick={() => handleDeletePhoto(photo.id)} className="bg-white/80 text-red-500 rounded-full w-8 h-8 flex items-center justify-center">
-                        <TrashIcon />
-                      </button>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => handleToggleFlag(photo)}
+                          className={`rounded-full w-8 h-8 flex items-center justify-center ${photo.flagged ? "bg-pink-500 text-white" : "bg-white/80 text-foreground/60"}`}
+                          aria-label={photo.flagged ? "Unflag photo" : "Flag photo for the doctor"}
+                        >
+                          <FlagIcon filled={photo.flagged} />
+                        </button>
+                        <button onClick={() => handleDeletePhoto(photo.id)} className="bg-white/80 text-red-500 rounded-full w-8 h-8 flex items-center justify-center">
+                          <TrashIcon />
+                        </button>
+                      </div>
                       <span className="text-white text-xs">{formatBytes(photo.size)}</span>
                     </div>
                   </div>
