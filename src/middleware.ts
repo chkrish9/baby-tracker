@@ -7,6 +7,7 @@ const PUBLIC_PREFIXES = [
   "/api/invites/",
   "/api/auth/",
   "/api/register",
+  "/api/mobile/signin",
 ];
 
 export default auth((req) => {
@@ -23,6 +24,9 @@ export default auth((req) => {
 
   if (!isLoggedIn && !isPublic) {
     if (isApi) {
+      // Allow API requests with Bearer token through — the route handler validates the token
+      const hasBearer = req.headers.get("authorization")?.startsWith("Bearer ");
+      if (hasBearer) return NextResponse.next();
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const url = new URL("/login", req.url);

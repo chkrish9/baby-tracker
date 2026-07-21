@@ -213,6 +213,26 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
           </svg>
         </div>
       </Link>
+
+      {/* Parents & invites card */}
+      <Link href={`/babies/${babyId}/invite`}>
+        <div className="flex items-center gap-3 bg-white rounded-2xl border border-pink-100/60 p-4 cursor-pointer hover:bg-pink-50 transition-colors">
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-pink-50 text-pink-400 flex-shrink-0">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="6.5" cy="6" r="2.5" />
+              <path d="M2 15c0-2.5 2-4 4.5-4S11 12.5 11 15" />
+              <path d="M12.5 8a2 2 0 100-4M15.5 15c0-2-1.5-3.3-3.5-3.8" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-sm text-foreground">Parents & invites</p>
+            <p className="text-xs text-foreground/50">View co-parents or invite one</p>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-foreground/40">
+            <path d="M6 4l6 5-6 5" />
+          </svg>
+        </div>
+      </Link>
     </div>
   );
 }

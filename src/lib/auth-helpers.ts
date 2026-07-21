@@ -1,9 +1,40 @@
 import { auth } from "@/auth";
+import { decode } from "@auth/core/jwt";
+import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 
 export async function getSession() {
-  return auth();
+  // Try cookie-based session first (web app)
+  const session = await auth();
+  if (session?.user?.id) return session;
+
+  // Fall back to Bearer token (mobile app)
+  const headersList = await headers();
+  const authHeader = headersList.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.slice(7);
+    try {
+      const payload = await decode({
+        token,
+        secret: process.env.AUTH_SECRET!,
+        salt: "authjs.session-token",
+      });
+      if (payload?.id) {
+        return {
+          user: {
+            id: payload.id as string,
+            email: (payload.email as string | undefined) ?? "",
+            name: (payload.name as string | null | undefined) ?? null,
+          },
+        };
+      }
+    } catch {
+      // Invalid token — fall through to return null
+    }
+  }
+
+  return null;
 }
 
 export async function assertParentOf(userId: string, babyId: string) {

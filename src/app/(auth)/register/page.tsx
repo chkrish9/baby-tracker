@@ -11,6 +11,7 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -25,10 +26,12 @@ export default function RegisterPage() {
       setLoading(false);
       return;
     }
-    const signInRes = await signIn("credentials", { email, password, rememberMe: "false", redirect: false });
+    const signInRes = await signIn("credentials", { email, password, rememberMe: String(rememberMe), redirect: false });
     setLoading(false);
     if (!signInRes?.ok) { router.push("/login"); return; }
-    sessionStorage.setItem("rm", "1");
+    localStorage.removeItem("rm");
+    sessionStorage.removeItem("rm");
+    (rememberMe ? localStorage : sessionStorage).setItem("rm", "1");
     router.push("/dashboard");
   }
 
@@ -56,6 +59,15 @@ export default function RegisterPage() {
             <label className="text-sm font-medium text-foreground">Password</label>
             <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" placeholder="Min 8 characters" minLength={8} />
           </div>
+          <label className="flex items-center gap-2 text-sm text-foreground/70 select-none cursor-pointer">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded accent-pink-500"
+            />
+            Remember me
+          </label>
           <Button type="submit" loading={loading} className="w-full !py-3 !text-base">Create account</Button>
         </form>
 

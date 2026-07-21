@@ -9,7 +9,7 @@ export async function GET() {
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { name: true, email: true, theme: true, profilePhoto: true },
+    select: { id: true, name: true, email: true, theme: true, profilePhoto: true },
   });
   if (!user) return unauthorized();
   return NextResponse.json(user);

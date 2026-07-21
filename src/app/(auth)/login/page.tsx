@@ -13,6 +13,7 @@ function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -20,10 +21,12 @@ function LoginForm() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const res = await signIn("credentials", { email, password, rememberMe: "true", redirect: false });
+    const res = await signIn("credentials", { email, password, rememberMe: String(rememberMe), redirect: false });
     setLoading(false);
     if (!res?.ok) { setError("Invalid email or password"); return; }
-    localStorage.setItem("rm", "1");
+    localStorage.removeItem("rm");
+    sessionStorage.removeItem("rm");
+    (rememberMe ? localStorage : sessionStorage).setItem("rm", "1");
     router.push(callbackUrl);
   }
 
@@ -54,6 +57,16 @@ function LoginForm() {
           placeholder="Your password"
         />
       </div>
+
+      <label className="flex items-center gap-2 text-sm text-foreground/70 select-none cursor-pointer">
+        <input
+          type="checkbox"
+          checked={rememberMe}
+          onChange={(e) => setRememberMe(e.target.checked)}
+          className="w-4 h-4 rounded accent-pink-500"
+        />
+        Remember me
+      </label>
 
       <Button type="submit" loading={loading} className="w-full !py-3 !text-base !rounded-2xl">
         Sign in
