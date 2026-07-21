@@ -1,5 +1,5 @@
 "use client";
-import { use, useRef } from "react";
+import { use, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { mutate } from "swr";
 import useSWR from "swr";
@@ -7,8 +7,54 @@ import { useBaby } from "@/hooks/useBaby";
 import { Avatar } from "@/components/ui/Avatar";
 import { Spinner } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
+import { WeeklyStackedBarChart, type ChartDay, type ChartSeries } from "@/components/charts/WeeklyStackedBarChart";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+const FEED_SERIES: ChartSeries[] = [
+  { key: "BOTTLE", label: "Bottle", color: "#2a78d6" },
+  { key: "BREAST_LEFT", label: "Breast (L)", color: "#eb6834" },
+  { key: "BREAST_RIGHT", label: "Breast (R)", color: "#1baf7a" },
+  { key: "SOLID", label: "Solid", color: "#eda100" },
+];
+
+const DIAPER_SERIES: ChartSeries[] = [
+  { key: "WET", label: "Wet", color: "#2a78d6" },
+  { key: "DIRTY", label: "Dirty", color: "#eb6834" },
+  { key: "BOTH", label: "Mixed", color: "#1baf7a" },
+  { key: "DRY", label: "Dry", color: "#eda100" },
+];
+
+type ChartRange = "today" | "yesterday" | "7d" | "30d";
+
+const RANGE_OPTIONS: { value: ChartRange; label: string; phrase: string }[] = [
+  { value: "today", label: "Today", phrase: "today" },
+  { value: "yesterday", label: "Yesterday", phrase: "yesterday" },
+  { value: "7d", label: "Last 7 days", phrase: "in the last 7 days" },
+  { value: "30d", label: "Last 30 days", phrase: "in the last 30 days" },
+];
+
+function daysForRange(range: ChartRange): Date[] {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (range === "today") return [start];
+  if (range === "yesterday") return [new Date(start.getFullYear(), start.getMonth(), start.getDate() - 1)];
+  const length = range === "30d" ? 30 : 7;
+  return Array.from({ length }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() - (length - 1 - i)));
+}
+
+function bucketByDay<T extends { type: string; loggedAt: string }>(logs: T[], days: Date[]): ChartDay[] {
+  return days.map((date) => {
+    const counts: Record<string, number> = {};
+    for (const log of logs) {
+      const logDate = new Date(log.loggedAt);
+      if (logDate.toDateString() === date.toDateString()) {
+        counts[log.type] = (counts[log.type] ?? 0) + 1;
+      }
+    }
+    return { date, counts };
+  });
+}
 
 function ageLabel(birthDate: string) {
   const birth = new Date(birthDate);
@@ -72,6 +118,14 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
   const { data: allBabies } = useSWR("/api/babies", fetcher);
   const { toast } = useToast();
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const [chartRange, setChartRange] = useState<ChartRange>("7d");
+  const chartDays = useMemo(() => daysForRange(chartRange), [chartRange]);
+  const feedChartData = useMemo(() => bucketByDay(feedings ?? [], chartDays), [feedings, chartDays]);
+  const diaperChartData = useMemo(() => bucketByDay(diapers ?? [], chartDays), [diapers, chartDays]);
+  const chartRangeOption = RANGE_OPTIONS.find((o) => o.value === chartRange) ?? RANGE_OPTIONS[2];
+  const chartRangeLabel = chartRangeOption.label;
+  const chartRangePhrase = chartRangeOption.phrase;
 
   async function handlePhotoUpload(files: FileList | null) {
     if (!files?.length) return;
@@ -164,6 +218,37 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
             Log diaper
           </button>
         </Link>
+      </div>
+
+      {/* Trends */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-foreground font-serif">Trends</h2>
+          <select
+            value={chartRange}
+            onChange={(e) => setChartRange(e.target.value as ChartRange)}
+            className="rounded-2xl border border-pink-100 bg-white px-3 py-1.5 text-sm text-foreground focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+            aria-label="Chart date range"
+          >
+            {RANGE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+        <WeeklyStackedBarChart
+          title="Feedings"
+          series={FEED_SERIES}
+          data={feedChartData}
+          rangeLabel={chartRangeLabel}
+          emptyLabel={`No feedings logged ${chartRangePhrase}`}
+        />
+        <WeeklyStackedBarChart
+          title="Diapers"
+          series={DIAPER_SERIES}
+          data={diaperChartData}
+          rangeLabel={chartRangeLabel}
+          emptyLabel={`No diaper changes logged ${chartRangePhrase}`}
+        />
       </div>
 
       {/* Today at a glance */}

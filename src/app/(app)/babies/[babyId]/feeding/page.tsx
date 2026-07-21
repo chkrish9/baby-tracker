@@ -199,7 +199,7 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
     const showDuration = feedType === "BREAST_LEFT" || feedType === "BREAST_RIGHT";
     if (showAmount && feedAmount) { body.amount = parseFloat(feedAmount); body.unit = feedAmountUnit; }
     if (showDuration && feedDuration) { body.duration = parseFloat(feedDuration); body.unit = feedDurationUnit; }
-    if (feedNotes) body.notes = feedNotes;
+    body.notes = feedNotes || null;
     body.loggedAt = combineDateTime(feedDate, feedTime);
     const url = editingFeedId ? `/api/babies/${babyId}/feeding/${editingFeedId}` : `/api/babies/${babyId}/feeding`;
     const res = await fetch(url, { method: editingFeedId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });

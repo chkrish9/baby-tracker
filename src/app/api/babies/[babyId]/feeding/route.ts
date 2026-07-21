@@ -11,7 +11,7 @@ export async function GET(_req: Request, { params }: Params) {
   const { babyId } = await params;
   try { await assertParentOf(session.user.id, babyId); } catch { return forbidden(); }
 
-  const logs = await db.feedingLog.findMany({ where: { babyId }, orderBy: { loggedAt: "desc" }, take: 50 });
+  const logs = await db.feedingLog.findMany({ where: { babyId }, orderBy: { loggedAt: "desc" }, take: 500 });
   return NextResponse.json(logs);
 }
 
