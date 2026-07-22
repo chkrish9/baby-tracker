@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { useBaby } from "@/hooks/useBaby";
 import { Avatar } from "@/components/ui/Avatar";
 import { Spinner } from "@/components/ui/Spinner";
+import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { WeeklyStackedBarChart } from "@/components/charts/WeeklyStackedBarChart";
 import {
@@ -66,6 +67,23 @@ function DiaperIcon({ className }: { className?: string }) {
   );
 }
 
+function CameraIcon({ className }: { className?: string }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M6 4l-1.2 2H3a1.5 1.5 0 00-1.5 1.5v7A1.5 1.5 0 003 16h12a1.5 1.5 0 001.5-1.5v-7A1.5 1.5 0 0015 6h-1.8L12 4H6z" />
+      <circle cx="9" cy="10" r="2.5" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
 interface FeedingLog { id: string; type: string; amount?: number | null; duration?: number | null; unit?: string | null; notes?: string | null; loggedAt: string; }
 interface DiaperLog { id: string; type: string; notes?: string | null; loggedAt: string; }
 
@@ -77,8 +95,10 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
   const { data: allBabies } = useSWR("/api/babies", fetcher);
   const { toast } = useToast();
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const galleryPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const [chartRange, setChartRange] = useState<ChartRange>("7d");
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
   const chartDays = useMemo(() => daysForRange(chartRange), [chartRange]);
   const feedChartData = useMemo(() => bucketByDay(feedings ?? [], chartDays, feedingExtra), [feedings, chartDays]);
   const diaperChartData = useMemo(() => bucketByDay(diapers ?? [], chartDays), [diapers, chartDays]);
@@ -92,6 +112,16 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
     formData.append("profilePhoto", files[0]);
     const res = await fetch(`/api/babies/${babyId}`, { method: "PATCH", body: formData });
     if (res.ok) { await mutate(`/api/babies/${babyId}`); await mutate("/api/babies"); toast("Photo updated!", "success"); }
+    else { const d = await res.json().catch(() => ({})); toast(d.error ?? "Upload failed", "error"); }
+  }
+
+  async function handleGalleryPhotoUpload(files: FileList | null) {
+    if (!files?.length) return;
+    setShowQuickAdd(false);
+    const formData = new FormData();
+    Array.from(files).forEach((f) => formData.append("files", f));
+    const res = await fetch(`/api/babies/${babyId}/photos`, { method: "POST", body: formData });
+    if (res.ok) { await mutate(`/api/babies/${babyId}/photos`); toast("Photo uploaded!", "success"); }
     else { const d = await res.json().catch(() => ({})); toast(d.error ?? "Upload failed", "error"); }
   }
 
@@ -163,21 +193,24 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
         </div>
       </div>
 
-      {/* Quick actions */}
-      <div className="grid grid-cols-2 gap-3">
-        <Link href={`/babies/${babyId}/feeding`}>
-          <button className="w-full flex items-center justify-center gap-2 bg-pink-500 hover:bg-pink-600 text-white rounded-2xl py-3 font-medium text-sm transition-colors">
-            <BottleIcon className="text-white" />
-            Log feed
-          </button>
-        </Link>
-        <Link href={`/babies/${babyId}/feeding?tab=diaper`}>
-          <button className="w-full flex items-center justify-center gap-2 bg-white hover:bg-pink-50 text-foreground border border-pink-100/60 rounded-2xl py-3 font-medium text-sm transition-colors">
-            <DiaperIcon />
-            Log diaper
-          </button>
-        </Link>
-      </div>
+      {/* Doctor visit card */}
+      <Link href={`/babies/${babyId}/doctor-visit`}>
+        <div className="flex items-center gap-3 bg-pink-500 rounded-2xl p-4 text-white cursor-pointer hover:bg-pink-600 transition-colors">
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/20 flex-shrink-0">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 2v5M4 9H2M16 9h-2M5.6 5.6l-1.4-1.4M13.8 13.8l-1.4-1.4" />
+              <circle cx="9" cy="9" r="3" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-sm">Prepare doctor visit</p>
+            <p className="text-xs text-white/70">View flagged items & photos</p>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 4l6 5-6 5" />
+          </svg>
+        </div>
+      </Link>
 
       {/* Trends */}
       <div className="space-y-3">
@@ -241,25 +274,6 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
         </div>
       )}
 
-      {/* Doctor visit card */}
-      <Link href={`/babies/${babyId}/doctor-visit`}>
-        <div className="flex items-center gap-3 bg-pink-500 rounded-2xl p-4 text-white cursor-pointer hover:bg-pink-600 transition-colors">
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/20 flex-shrink-0">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 2v5M4 9H2M16 9h-2M5.6 5.6l-1.4-1.4M13.8 13.8l-1.4-1.4" />
-              <circle cx="9" cy="9" r="3" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <p className="font-semibold text-sm">Prepare doctor visit</p>
-            <p className="text-xs text-white/70">View flagged items & photos</p>
-          </div>
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 4l6 5-6 5" />
-          </svg>
-        </div>
-      </Link>
-
       {/* Parents & invites card */}
       <Link href={`/babies/${babyId}/invite`}>
         <div className="flex items-center gap-3 bg-white rounded-2xl border border-pink-100/60 p-4 cursor-pointer hover:bg-pink-50 transition-colors">
@@ -279,6 +293,46 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
           </svg>
         </div>
       </Link>
+
+      <input ref={galleryPhotoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleGalleryPhotoUpload(e.target.files)} />
+
+      <button
+        onClick={() => setShowQuickAdd(true)}
+        className="fixed bottom-24 right-4 z-40 w-14 h-14 rounded-full bg-pink-500 hover:bg-pink-600 text-white shadow-lg flex items-center justify-center transition-colors"
+        aria-label="Quick add"
+      >
+        <PlusIcon />
+      </button>
+
+      <Modal open={showQuickAdd} onClose={() => setShowQuickAdd(false)} title="Quick add">
+        <div className="space-y-2 mt-2">
+          <Link href={`/babies/${babyId}/feeding`} onClick={() => setShowQuickAdd(false)}>
+            <div className="flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3.5 cursor-pointer transition-colors">
+              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-pink-500 text-white flex-shrink-0">
+                <BottleIcon />
+              </div>
+              <p className="font-medium text-foreground text-sm">Log feed</p>
+            </div>
+          </Link>
+          <Link href={`/babies/${babyId}/feeding?tab=diaper`} onClick={() => setShowQuickAdd(false)}>
+            <div className="flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3.5 cursor-pointer transition-colors">
+              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-amber-500 text-white flex-shrink-0">
+                <DiaperIcon />
+              </div>
+              <p className="font-medium text-foreground text-sm">Log diaper</p>
+            </div>
+          </Link>
+          <button
+            onClick={() => galleryPhotoInputRef.current?.click()}
+            className="w-full flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3.5 cursor-pointer transition-colors"
+          >
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-sky-500 text-white flex-shrink-0">
+              <CameraIcon />
+            </div>
+            <p className="font-medium text-foreground text-sm">Upload photo</p>
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
