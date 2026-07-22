@@ -16,7 +16,8 @@ export async function POST(req: Request) {
   const uniqueBabyIds = Array.from(new Set(babyIds));
 
   const myLinks = await db.babyParent.findMany({ where: { userId: session.user.id, babyId: { in: uniqueBabyIds } } });
-  if (myLinks.length !== uniqueBabyIds.length) return forbidden();
+  const isOwnerOfAll = myLinks.length === uniqueBabyIds.length && myLinks.every((l) => l.role === "OWNER");
+  if (!isOwnerOfAll) return forbidden();
 
   const alreadyParentOf = await db.babyParent.findMany({ where: { babyId: { in: uniqueBabyIds }, user: { email } } });
   const alreadyParentBabyIds = new Set(alreadyParentOf.map((l) => l.babyId));

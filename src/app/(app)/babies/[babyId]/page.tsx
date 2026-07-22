@@ -142,13 +142,14 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
   ].sort((a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime()).slice(0, 4);
 
   const babiesCount = allBabies?.length ?? 1;
+  const fullName = [baby.firstName, baby.lastName].filter(Boolean).join(" ") || baby.name;
 
   return (
     <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
       {/* Baby header */}
       <div className="flex items-center gap-3">
         <div className="relative cursor-pointer" onClick={() => photoInputRef.current?.click()}>
-          <Avatar src={photoSrc} name={baby.name} size={60} />
+          <Avatar src={photoSrc} name={fullName} size={60} />
           <div className="absolute bottom-0 right-0 bg-white rounded-full p-0.5 border border-pink-100/60 shadow-sm">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M6 1.5C3.5 1.5 1.5 3.5 1.5 6S3.5 10.5 6 10.5 10.5 8.5 10.5 6 8.5 1.5 6 1.5z" /><circle cx="6" cy="6" r="2" />
@@ -158,7 +159,7 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
         <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e.target.files)} />
         <div>
           <Link href="/dashboard" className="flex items-center gap-1.5 group">
-            <h1 className="text-2xl font-bold text-foreground font-serif">{baby.name}</h1>
+            <h1 className="text-2xl font-bold text-foreground font-serif">{fullName}</h1>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-foreground/40 group-hover:text-foreground/60 transition-colors mt-0.5">
               <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -213,7 +214,7 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
       </Link>
 
       {/* Trends */}
-      <div className="space-y-3">
+      <div className="space-y-3 mt-2">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-foreground font-serif">Trends</h2>
           <select

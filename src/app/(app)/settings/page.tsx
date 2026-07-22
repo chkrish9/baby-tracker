@@ -75,6 +75,8 @@ export default function SettingsPage() {
     });
   }
 
+  const ownedBabies = babies?.filter((baby) => baby.parents.some((p) => p.userId === session?.user?.id && p.role === "OWNER")) ?? [];
+
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
     if (selectedBabyIds.size === 0) { toast("Select at least one baby to share", "error"); return; }
@@ -212,32 +214,40 @@ export default function SettingsPage() {
           );
         })}
 
-        <form onSubmit={handleInvite} className="space-y-3 pt-1 border-t border-pink-100/60 mt-1">
-          <div className="pt-3">
-            <label className="text-sm font-medium text-foreground block mb-1.5">Their email address</label>
-            <Input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} required placeholder="parent@example.com" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-foreground mb-2">Share access to</p>
-            <div className="space-y-2">
-              {babies?.map((baby) => (
-                <label
-                  key={baby.id}
-                  className="flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3 cursor-pointer transition-colors"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedBabyIds.has(baby.id)}
-                    onChange={() => toggleBaby(baby.id)}
-                    className="w-4 h-4 rounded accent-pink-500 flex-shrink-0"
-                  />
-                  <span className="text-sm font-medium text-foreground">{baby.name}</span>
-                </label>
-              ))}
+        {ownedBabies.length > 0 ? (
+          <form onSubmit={handleInvite} className="space-y-3 pt-1 border-t border-pink-100/60 mt-1">
+            <div className="pt-3">
+              <label className="text-sm font-medium text-foreground block mb-1.5">Their email address</label>
+              <Input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} required placeholder="parent@example.com" />
             </div>
-          </div>
-          <Button type="submit" loading={inviteLoading} size="sm">Generate invite link</Button>
-        </form>
+            <div>
+              <p className="text-sm font-medium text-foreground mb-2">Share access to</p>
+              <div className="space-y-2">
+                {ownedBabies.map((baby) => (
+                  <label
+                    key={baby.id}
+                    className="flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3 cursor-pointer transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedBabyIds.has(baby.id)}
+                      onChange={() => toggleBaby(baby.id)}
+                      className="w-4 h-4 rounded accent-pink-500 flex-shrink-0"
+                    />
+                    <span className="text-sm font-medium text-foreground">{baby.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <Button type="submit" loading={inviteLoading} size="sm">Generate invite link</Button>
+          </form>
+        ) : (
+          babies && babies.length > 0 && (
+            <p className="text-sm text-foreground/40 pt-3 border-t border-pink-100/60 mt-1">
+              Only a baby&apos;s owner can invite other parents to share access.
+            </p>
+          )
+        )}
 
         {inviteLink && (
           <div className="bg-[#e1f7ee] border border-[#bdebd9] rounded-2xl p-4 mt-3">
