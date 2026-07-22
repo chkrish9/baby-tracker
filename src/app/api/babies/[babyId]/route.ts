@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSession, unauthorized, forbidden, notFound, assertParentOf } from "@/lib/auth-helpers";
 import { babyUpdateSchema } from "@/lib/validation";
 import { saveFile, deleteFile } from "@/lib/upload";
+import { babyDisplayName } from "@/lib/utils";
 
 type Params = { params: Promise<{ babyId: string }> };
 
@@ -50,7 +51,23 @@ export async function PATCH(req: Request, { params }: Params) {
   const parsed = babyUpdateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid input", issues: parsed.error.issues }, { status: 400 });
 
-  const baby = await db.baby.update({ where: { id: babyId }, data: parsed.data });
+  const existing = await db.baby.findUnique({ where: { id: babyId } });
+  if (!existing) return notFound();
+
+  const merged = {
+    firstName: parsed.data.firstName ?? existing.firstName,
+    lastName: parsed.data.lastName ?? existing.lastName,
+    nickname: parsed.data.nickname !== undefined ? parsed.data.nickname : existing.nickname,
+  };
+
+  const baby = await db.baby.update({
+    where: { id: babyId },
+    data: {
+      ...parsed.data,
+      nickname: merged.nickname || null,
+      name: babyDisplayName(merged),
+    },
+  });
   return NextResponse.json(baby);
 }
 

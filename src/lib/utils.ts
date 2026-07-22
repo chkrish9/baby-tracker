@@ -11,6 +11,12 @@ export function addDays(date: Date, days: number): Date {
   return d;
 }
 
+export function babyDisplayName(baby: { firstName?: string | null; lastName?: string | null; nickname?: string | null }): string {
+  const nickname = baby.nickname?.trim();
+  if (nickname) return nickname;
+  return [baby.firstName, baby.lastName].filter(Boolean).join(" ").trim();
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
   const units = ["B", "KB", "MB", "GB"];

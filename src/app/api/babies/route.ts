@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession, unauthorized } from "@/lib/auth-helpers";
 import { babyCreateSchema } from "@/lib/validation";
+import { babyDisplayName } from "@/lib/utils";
 
 export async function GET() {
   const session = await getSession();
@@ -26,8 +27,13 @@ export async function POST(request: Request) {
 
   const baby = await db.baby.create({
     data: {
-      name: parsed.data.name,
+      name: babyDisplayName(parsed.data),
+      firstName: parsed.data.firstName,
+      lastName: parsed.data.lastName,
+      nickname: parsed.data.nickname || null,
       birthDate: parsed.data.birthDate,
+      weight: parsed.data.weight ?? null,
+      height: parsed.data.height ?? null,
       parents: { create: { userId: session.user.id, role: "OWNER" } },
     },
     include: { parents: { include: { user: { select: { id: true, name: true, email: true } } } } },

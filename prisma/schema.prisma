@@ -23,7 +23,12 @@ model User {
 model Baby {
   id           String            @id @default(cuid())
   name         String
+  firstName    String?
+  lastName     String?
+  nickname     String?
   birthDate    DateTime
+  weight       Float? // kg
+  height       Float? // cm
   profilePhoto String? // relative path: babies/[id]/profile/filename
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt

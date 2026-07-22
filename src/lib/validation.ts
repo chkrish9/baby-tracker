@@ -7,13 +7,21 @@ export const registerSchema = z.object({
 });
 
 export const babyCreateSchema = z.object({
-  name: z.string().trim().min(1).max(100),
+  firstName: z.string().trim().min(1).max(50),
+  lastName: z.string().trim().min(1).max(50),
+  nickname: z.string().trim().max(50).optional().nullable(),
   birthDate: z.coerce.date(),
+  weight: z.coerce.number().positive().optional().nullable(),
+  height: z.coerce.number().positive().optional().nullable(),
 });
 
 export const babyUpdateSchema = z.object({
-  name: z.string().trim().min(1).max(100).optional(),
+  firstName: z.string().trim().min(1).max(50).optional(),
+  lastName: z.string().trim().min(1).max(50).optional(),
+  nickname: z.string().trim().max(50).optional().nullable(),
   birthDate: z.coerce.date().optional(),
+  weight: z.coerce.number().positive().optional().nullable(),
+  height: z.coerce.number().positive().optional().nullable(),
 });
 
 export const feedingCreateSchema = z.object({
