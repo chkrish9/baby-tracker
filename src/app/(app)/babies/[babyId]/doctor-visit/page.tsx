@@ -21,17 +21,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 interface FeedingLog { id: string; type: string; amount?: number | null; duration?: number | null; unit?: string | null; loggedAt: string; }
 interface DiaperLog { id: string; type: string; notes?: string | null; loggedAt: string; }
-interface Doc { id: string; path: string; originalName: string; mimeType: string; }
 interface Appointment { id: string; date: string; notes?: string | null; }
-
-function DocIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6l-4-4z" />
-      <path d="M9 2v4h4" />
-    </svg>
-  );
-}
 
 function TrashIcon() {
   return (
@@ -98,7 +88,6 @@ export default function DoctorVisitPage({ params }: { params: Promise<{ babyId: 
   const { data: baby, isLoading: babyLoading } = useBaby(babyId);
   const { data: feedings } = useSWR(`/api/babies/${babyId}/feeding`, fetcher);
   const { data: diapers } = useSWR(`/api/babies/${babyId}/diapers`, fetcher);
-  const { data: docs } = useSWR(`/api/babies/${babyId}/documents`, fetcher);
   const { data: appointments } = useSWR<Appointment[]>(`/api/babies/${babyId}/appointments`, fetcher);
   const { toast } = useToast();
 
@@ -352,31 +341,6 @@ export default function DoctorVisitPage({ params }: { params: Promise<{ babyId: 
       )}
 
       <VisitPrep babyId={babyId} appointmentId={nextAppt?.id ?? null} />
-
-      {/* Documents */}
-      <p className="text-xs font-semibold text-foreground/40 tracking-widest uppercase mb-2">Documents</p>
-      {docs?.length ? (
-        <div className="space-y-2">
-          {docs.map((doc: Doc) => (
-            <a
-              key={doc.id}
-              href={`/api/files/${doc.path}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 bg-white rounded-2xl border border-pink-100/60 px-4 py-3.5 hover:border-pink-200 transition-colors"
-            >
-              <div className="text-foreground/50">
-                <DocIcon />
-              </div>
-              <span className="text-sm font-medium text-foreground truncate">{doc.originalName}</span>
-            </a>
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-pink-100/60 px-4 py-4">
-          <p className="text-sm text-foreground/40 text-center">No documents uploaded yet.</p>
-        </div>
-      )}
 
       {/* Add/edit appointment modal */}
       <Modal open={showApptModal} onClose={() => setShowApptModal(false)} title={editingApptId ? "Edit appointment" : "Add appointment"}>

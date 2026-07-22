@@ -252,7 +252,7 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
           </div>
           <div className="flex-1">
             <p className="font-semibold text-sm">Prepare doctor visit</p>
-            <p className="text-xs text-white/70">View flagged items & documents</p>
+            <p className="text-xs text-white/70">View flagged items & photos</p>
           </div>
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 4l6 5-6 5" />

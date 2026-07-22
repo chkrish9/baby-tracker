@@ -24,7 +24,7 @@ function LogsIcon() {
   );
 }
 
-function DocumentsIcon() {
+function PhotosIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.6">
       <rect x="2" y="5" width="18" height="14" rx="2.5" />
@@ -60,17 +60,17 @@ export function BottomNav() {
 
   const isDashboard = pathname === "/dashboard" || (!!activeBabyId && pathname === `/babies/${activeBabyId}`);
   const isLogs = !!activeBabyId && (pathname.startsWith(`/babies/${activeBabyId}/feeding`) || pathname.startsWith(`/babies/${activeBabyId}/diapers`));
-  const isDocs = !!activeBabyId && (pathname.startsWith(`/babies/${activeBabyId}/documents`) || pathname.startsWith(`/babies/${activeBabyId}/photos`));
+  const isPhotos = !!activeBabyId && (pathname.startsWith(`/babies/${activeBabyId}/documents`) || pathname.startsWith(`/babies/${activeBabyId}/photos`));
   const isSettings = pathname.startsWith("/settings");
 
   const dashHref = activeBabyId ? `/babies/${activeBabyId}` : "/dashboard";
   const logsHref = activeBabyId ? `/babies/${activeBabyId}/feeding` : "/dashboard";
-  const docsHref = activeBabyId ? `/babies/${activeBabyId}/documents` : "/dashboard";
+  const photosHref = activeBabyId ? `/babies/${activeBabyId}/photos` : "/dashboard";
 
   const items = [
     { href: dashHref, label: "Dashboard", icon: <DashboardIcon active={isDashboard} />, active: isDashboard },
     { href: logsHref, label: "Logs", icon: <LogsIcon />, active: isLogs },
-    { href: docsHref, label: "Documents", icon: <DocumentsIcon />, active: isDocs },
+    { href: photosHref, label: "Photos", icon: <PhotosIcon />, active: isPhotos },
     { href: "/settings", label: "Settings", icon: <SettingsIcon />, active: isSettings },
   ];
 

@@ -154,7 +154,7 @@ export function VisitPrep({ babyId, appointmentId }: VisitPrepProps) {
       {/* Flagged Photos */}
       <div className="flex items-center justify-between mb-2">
         <p className="text-xs font-semibold text-foreground/40 tracking-widest uppercase">Flagged photos</p>
-        <Link href={`/babies/${babyId}/documents`} className="text-xs text-foreground/40 hover:text-foreground/60 transition-colors">Manage photos</Link>
+        <Link href={`/babies/${babyId}/photos`} className="text-xs text-foreground/40 hover:text-foreground/60 transition-colors">Manage photos</Link>
       </div>
       {flaggedPhotos?.length ? (
         <div className="grid grid-cols-3 gap-2 mb-5">

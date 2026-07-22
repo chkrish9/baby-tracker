@@ -50,7 +50,7 @@ export default function DashboardPage() {
       </div>
 
       <p className="text-sm text-foreground/50 mb-5">
-        Each baby keeps their own feeding logs, diaper history, photos and documents. Tap a baby to switch.
+        Each baby keeps their own feeding logs, diaper history, and photos. Tap a baby to switch.
       </p>
 
       {isLoading && <div className="flex justify-center py-12"><Spinner /></div>}

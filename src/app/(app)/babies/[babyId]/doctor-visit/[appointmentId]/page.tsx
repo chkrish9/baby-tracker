@@ -14,16 +14,6 @@ import { VisitPrep } from "@/components/doctor-visit/VisitPrep";
 const fetcher = (url: string) => fetch(url).then((r) => { if (!r.ok) throw new Error("Not found"); return r.json(); });
 
 interface Appointment { id: string; date: string; notes?: string | null; }
-interface Doc { id: string; path: string; originalName: string; }
-
-function DocIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6l-4-4z" />
-      <path d="M9 2v4h4" />
-    </svg>
-  );
-}
 
 function EditIcon() {
   return (
@@ -73,7 +63,6 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ ba
   const router = useRouter();
   const { toast } = useToast();
   const { data: appt, error, isLoading } = useSWR<Appointment>(`/api/babies/${babyId}/appointments/${appointmentId}`, fetcher);
-  const { data: docs } = useSWR(`/api/babies/${babyId}/documents`, fetcher);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [apptDate, setApptDate] = useState("");
@@ -157,31 +146,6 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ ba
       </div>
 
       <VisitPrep babyId={babyId} appointmentId={appointmentId} />
-
-      {/* Documents */}
-      <p className="text-xs font-semibold text-foreground/40 tracking-widest uppercase mb-2">Documents</p>
-      {docs?.length ? (
-        <div className="space-y-2">
-          {docs.map((doc: Doc) => (
-            <a
-              key={doc.id}
-              href={`/api/files/${doc.path}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 bg-white rounded-2xl border border-pink-100/60 px-4 py-3.5 hover:border-pink-200 transition-colors"
-            >
-              <div className="text-foreground/50">
-                <DocIcon />
-              </div>
-              <span className="text-sm font-medium text-foreground truncate">{doc.originalName}</span>
-            </a>
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-pink-100/60 px-4 py-4">
-          <p className="text-sm text-foreground/40 text-center">No documents uploaded yet.</p>
-        </div>
-      )}
 
       {/* Edit appointment modal */}
       <Modal open={showEditModal} onClose={() => setShowEditModal(false)} title="Edit appointment">
