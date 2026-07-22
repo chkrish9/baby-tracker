@@ -189,7 +189,7 @@ export function VisitPrep({ babyId, appointmentId }: VisitPrepProps) {
       {/* Flagged Diaper Notes */}
       <div className="flex items-center justify-between mb-2">
         <p className="text-xs font-semibold text-foreground/40 tracking-widest uppercase">Flagged diaper notes</p>
-        <Link href={`/babies/${babyId}/feeding`} className="text-xs text-foreground/40 hover:text-foreground/60 transition-colors">View diaper log</Link>
+        <Link href={`/babies/${babyId}/feeding?tab=diaper`} className="text-xs text-foreground/40 hover:text-foreground/60 transition-colors">View diaper log</Link>
       </div>
       {flaggedDiapers?.length ? (
         <div className="space-y-2 mb-5">

@@ -1,5 +1,5 @@
 "use client";
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { mutate } from "swr";
 import { useFeedings } from "@/hooks/useFeeding";
 import { useDiapers } from "@/hooks/useDiapers";
@@ -45,12 +45,17 @@ function formatTime(iso: string) {
 }
 
 function timeAgo(iso: string) {
-  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  const h = Math.floor(diff / 3600);
-  const m = Math.floor((diff % 3600) / 60);
-  return m > 0 ? `${h}h ${m}m ago` : `${h}h ago`;
+  const diffSec = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diffSec < 60) return "just now";
+  const totalMin = Math.floor(diffSec / 60);
+  const days = Math.floor(totalMin / 1440);
+  const hours = Math.floor((totalMin % 1440) / 60);
+  const mins = totalMin % 60;
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (mins > 0 || parts.length === 0) parts.push(`${mins}m`);
+  return `${parts.join(" ")} ago`;
 }
 
 function pad(n: number) {
@@ -140,6 +145,11 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
   const { toast } = useToast();
 
   const [tab, setTab] = useState<"feeding" | "diaper">("feeding");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tab") === "diaper") setTab("diaper");
+  }, []);
   const [showFeedModal, setShowFeedModal] = useState(false);
   const [showDiaperModal, setShowDiaperModal] = useState(false);
   const [editingFeedId, setEditingFeedId] = useState<string | null>(null);

@@ -21,3 +21,21 @@ export function formatBytes(bytes: number): string {
   const value = bytes / 1024 ** exponent;
   return `${exponent === 0 ? value : value.toFixed(1)} ${units[exponent]}`;
 }
+
+export const ML_PER_OZ = 29.5735; // standard US fluid ounce
+
+export function formatOz(ml: number): string {
+  return `${(ml / ML_PER_OZ).toFixed(1)} oz`;
+}
+
+export function formatMl(ml: number): string {
+  return `${Math.round(ml)} ml`;
+}
+
+export function formatMinutes(totalMinutes: number): string {
+  const min = Math.round(totalMinutes);
+  if (min < 60) return `${min}m`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}

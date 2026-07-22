@@ -5,6 +5,6 @@ import { useRouter } from "next/navigation";
 export default function DiapersRedirect({ params }: { params: Promise<{ babyId: string }> }) {
   const { babyId } = use(params);
   const router = useRouter();
-  useEffect(() => { router.replace(`/babies/${babyId}/feeding`); }, [babyId, router]);
+  useEffect(() => { router.replace(`/babies/${babyId}/feeding?tab=diaper`); }, [babyId, router]);
   return null;
 }

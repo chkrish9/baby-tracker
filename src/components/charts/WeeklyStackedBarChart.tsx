@@ -11,6 +11,19 @@ export interface ChartSeries {
 export interface ChartDay {
   date: Date;
   counts: Record<string, number>;
+  extra?: Record<string, number>;
+}
+
+interface TooltipExtraLine {
+  label: string;
+  value: string;
+  color?: string;
+}
+
+interface ExtraColumn {
+  key: string;
+  label: string;
+  format: (day: ChartDay) => string;
 }
 
 interface Props {
@@ -19,6 +32,8 @@ interface Props {
   data: ChartDay[];
   emptyLabel: string;
   rangeLabel: string;
+  tooltipExtraLines?: (day: ChartDay) => TooltipExtraLine[];
+  extraColumns?: ExtraColumn[];
 }
 
 const WIDTH = 328;
@@ -50,9 +65,9 @@ function tickIndices(n: number): Set<number> {
   return idxs;
 }
 
-export function WeeklyStackedBarChart({ title, series, data, emptyLabel, rangeLabel }: Props) {
+export function WeeklyStackedBarChart({ title, series, data, emptyLabel, rangeLabel, tooltipExtraLines, extraColumns }: Props) {
   const gradientId = useId();
-  const [hover, setHover] = useState<{ x: number; y: number; label: string; value: number; color: string } | null>(null);
+  const [hover, setHover] = useState<{ x: number; y: number; label: string; value: number; color: string; dayIndex: number } | null>(null);
   const [showTable, setShowTable] = useState(false);
 
   const dense = data.length <= DENSE_THRESHOLD;
@@ -76,6 +91,8 @@ export function WeeklyStackedBarChart({ title, series, data, emptyLabel, rangeLa
   const yTicks = y.ticks(3);
   const barWidth = Math.min(BAR_MAX, x.bandwidth());
   const showTotals = x.bandwidth() >= MIN_LABEL_BAND;
+
+  const extraLines = hover && tooltipExtraLines ? tooltipExtraLines(data[hover.dayIndex]) : [];
 
   return (
     <div className="bg-white rounded-2xl border border-pink-100/60 p-4 relative">
@@ -140,7 +157,7 @@ export function WeeklyStackedBarChart({ title, series, data, emptyLabel, rangeLa
                             height={h}
                             fill={s.color}
                             className="transition-opacity"
-                            opacity={hover && hover.label === s.label && hover.value === s.value ? 0.8 : 1}
+                            opacity={hover && hover.dayIndex === i && hover.label === s.label && hover.value === s.value ? 0.8 : 1}
                             onPointerEnter={(e) => {
                               const rect = (e.target as SVGElement).ownerSVGElement?.getBoundingClientRect();
                               setHover({
@@ -149,6 +166,7 @@ export function WeeklyStackedBarChart({ title, series, data, emptyLabel, rangeLa
                                 label: s.label,
                                 value: s.value,
                                 color: s.color,
+                                dayIndex: i,
                               });
                             }}
                             onPointerLeave={() => setHover(null)}
@@ -186,6 +204,17 @@ export function WeeklyStackedBarChart({ title, series, data, emptyLabel, rangeLa
                 <span className="text-foreground/50">{hover.label}</span>
                 <span className="font-semibold text-foreground">{hover.value}</span>
               </div>
+              {extraLines.length > 0 && (
+                <div className="mt-1 pt-1 border-t border-pink-100/40 space-y-0.5">
+                  {extraLines.map((line, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5">
+                      {line.color && <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ background: line.color }} />}
+                      <span className="text-foreground/50">{line.label}</span>
+                      <span className="font-semibold text-foreground">{line.value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -216,6 +245,9 @@ export function WeeklyStackedBarChart({ title, series, data, emptyLabel, rangeLa
                     {series.map((s) => (
                       <th key={s.key} className="text-right font-medium py-1 px-1.5 sticky top-0 bg-white">{s.label}</th>
                     ))}
+                    {extraColumns?.map((c) => (
+                      <th key={c.key} className="text-right font-medium py-1 px-1.5 sticky top-0 bg-white">{c.label}</th>
+                    ))}
                     <th className="text-right font-medium py-1 pl-1.5 sticky top-0 bg-white">Total</th>
                   </tr>
                 </thead>
@@ -226,6 +258,11 @@ export function WeeklyStackedBarChart({ title, series, data, emptyLabel, rangeLa
                       {series.map((s) => (
                         <td key={s.key} className="text-right py-1 px-1.5 text-foreground tabular-nums">
                           {d.counts[s.key] ?? 0}
+                        </td>
+                      ))}
+                      {extraColumns?.map((c) => (
+                        <td key={c.key} className="text-right py-1 px-1.5 text-foreground tabular-nums">
+                          {c.format(d)}
                         </td>
                       ))}
                       <td className="text-right py-1 pl-1.5 font-semibold text-foreground tabular-nums">{totals[i]}</td>
