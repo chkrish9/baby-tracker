@@ -436,7 +436,7 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
                 <select
                   value={feedAmountUnit}
                   onChange={(e) => setFeedAmountUnit(e.target.value)}
-                  className="rounded-2xl border border-pink-100 bg-white px-3 py-2.5 text-sm text-foreground focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  className="flex-1 rounded-2xl border border-pink-100 bg-white px-3 py-2.5 text-sm text-foreground focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
                 >
                   {AMOUNT_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
                 </select>
@@ -451,7 +451,7 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
                 <select
                   value={feedDurationUnit}
                   onChange={(e) => setFeedDurationUnit(e.target.value)}
-                  className="rounded-2xl border border-pink-100 bg-white px-3 py-2.5 text-sm text-foreground focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  className="flex-1 rounded-2xl border border-pink-100 bg-white px-3 py-2.5 text-sm text-foreground focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
                 >
                   {DURATION_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
                 </select>

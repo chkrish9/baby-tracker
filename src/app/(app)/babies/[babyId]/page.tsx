@@ -271,7 +271,7 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
           <select
             value={chartRange}
             onChange={(e) => setChartRange(e.target.value as ChartRange)}
-            className="rounded-2xl border border-pink-100 bg-white px-3 py-1.5 text-sm text-foreground focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+            className="flex-shrink-0 rounded-2xl border border-pink-100 bg-white pl-3 pr-7 py-1.5 text-sm text-foreground focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
             aria-label="Chart date range"
           >
             {RANGE_OPTIONS.map((o) => (
