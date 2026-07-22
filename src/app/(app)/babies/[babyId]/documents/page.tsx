@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
 import { formatBytes } from "@/lib/utils";
+import { FlagAppointmentsModal } from "@/components/doctor-visit/FlagAppointmentsModal";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 interface Doc { id: string; path: string; originalName: string; size: number; mimeType: string; uploadedAt: string; }
-interface Photo { id: string; path: string; filename: string; size: number; caption?: string | null; flagged: boolean; takenAt: string; }
+interface Photo { id: string; path: string; filename: string; size: number; caption?: string | null; appointmentIds: string[]; takenAt: string; }
 
 function TrashIcon() {
   return (
@@ -50,6 +51,7 @@ export default function DocumentsPage({ params }: { params: Promise<{ babyId: st
   const { babyId } = use(params);
   const { toast } = useToast();
   const [tab, setTab] = useState<"photos" | "documents">("photos");
+  const [flaggingPhoto, setFlaggingPhoto] = useState<Photo | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,15 +82,15 @@ export default function DocumentsPage({ params }: { params: Promise<{ babyId: st
     else toast("Failed to delete", "error");
   }
 
-  async function handleToggleFlag(photo: Photo) {
-    const res = await fetch(`/api/babies/${babyId}/photos/${photo.id}`, {
-      method: "PATCH",
+  async function handleSavePhotoFlags(photoId: string, appointmentIds: string[]) {
+    const res = await fetch(`/api/babies/${babyId}/photos/${photoId}/appointments`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ flagged: !photo.flagged }),
+      body: JSON.stringify({ appointmentIds }),
     });
     if (res.ok) {
       await mutate(`/api/babies/${babyId}/photos`);
-      toast(photo.flagged ? "Unflagged" : "Flagged for the doctor", "success");
+      toast(appointmentIds.length === 0 ? "Unflagged" : "Flagged for the doctor", "success");
     } else toast("Failed to update", "error");
   }
 
@@ -157,7 +159,7 @@ export default function DocumentsPage({ params }: { params: Promise<{ babyId: st
                   <div key={photo.id} className="relative group rounded-2xl overflow-hidden bg-pink-50 border border-pink-100/60 aspect-square">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={`/api/files/${photo.path}`} alt={photo.filename} className="object-cover w-full h-full" />
-                    {photo.flagged && (
+                    {photo.appointmentIds.length > 0 && (
                       <div className="absolute top-2 left-2 bg-pink-500 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-sm">
                         <FlagIcon filled />
                       </div>
@@ -165,11 +167,11 @@ export default function DocumentsPage({ params }: { params: Promise<{ babyId: st
                     <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-end justify-between p-2">
                       <div className="flex gap-1.5">
                         <button
-                          onClick={() => handleToggleFlag(photo)}
-                          className={`rounded-full w-8 h-8 flex items-center justify-center ${photo.flagged ? "bg-pink-500 text-white" : "bg-white/80 text-foreground/60"}`}
-                          aria-label={photo.flagged ? "Unflag photo" : "Flag photo for the doctor"}
+                          onClick={() => setFlaggingPhoto(photo)}
+                          className={`rounded-full w-8 h-8 flex items-center justify-center ${photo.appointmentIds.length > 0 ? "bg-pink-500 text-white" : "bg-white/80 text-foreground/60"}`}
+                          aria-label={photo.appointmentIds.length > 0 ? "Edit flagged appointments" : "Flag photo for the doctor"}
                         >
-                          <FlagIcon filled={photo.flagged} />
+                          <FlagIcon filled={photo.appointmentIds.length > 0} />
                         </button>
                         <button onClick={() => handleDeletePhoto(photo.id)} className="bg-white/80 text-red-500 rounded-full w-8 h-8 flex items-center justify-center">
                           <TrashIcon />
@@ -218,6 +220,14 @@ export default function DocumentsPage({ params }: { params: Promise<{ babyId: st
           </>
         )}
       </div>
+
+      <FlagAppointmentsModal
+        open={!!flaggingPhoto}
+        onClose={() => setFlaggingPhoto(null)}
+        babyId={babyId}
+        currentAppointmentIds={flaggingPhoto?.appointmentIds ?? []}
+        onSave={(appointmentIds) => handleSavePhotoFlags(flaggingPhoto!.id, appointmentIds)}
+      />
     </div>
   );
 }

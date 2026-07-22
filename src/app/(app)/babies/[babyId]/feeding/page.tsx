@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Spinner } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
+import { FlagAppointmentsModal } from "@/components/doctor-visit/FlagAppointmentsModal";
 
 const FEED_TYPES = [
   { value: "BOTTLE", label: "Bottle" },
@@ -138,7 +139,7 @@ function FlagIcon({ filled }: { filled?: boolean }) {
 }
 
 interface FeedingLog { id: string; type: string; amount?: number | null; duration?: number | null; unit?: string | null; notes?: string | null; loggedAt: string; }
-interface DiaperLog { id: string; type: string; notes?: string | null; flagged?: boolean; loggedAt: string; }
+interface DiaperLog { id: string; type: string; notes?: string | null; appointmentIds: string[]; loggedAt: string; }
 
 export default function LogsPage({ params }: { params: Promise<{ babyId: string }> }) {
   const { babyId } = use(params);
@@ -154,6 +155,7 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
   const [showDiaperModal, setShowDiaperModal] = useState(false);
   const [editingFeedId, setEditingFeedId] = useState<string | null>(null);
   const [editingDiaperId, setEditingDiaperId] = useState<string | null>(null);
+  const [flaggingDiaper, setFlaggingDiaper] = useState<DiaperLog | null>(null);
 
   // Feeding form state
   const [feedType, setFeedType] = useState("BOTTLE");
@@ -188,15 +190,15 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
     else toast("Failed to delete", "error");
   }
 
-  async function handleToggleFlagDiaper(log: DiaperLog) {
-    const res = await fetch(`/api/babies/${babyId}/diapers/${log.id}`, {
-      method: "PATCH",
+  async function handleSaveDiaperFlags(logId: string, appointmentIds: string[]) {
+    const res = await fetch(`/api/babies/${babyId}/diapers/${logId}/appointments`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ flagged: !log.flagged }),
+      body: JSON.stringify({ appointmentIds }),
     });
     if (res.ok) {
       mutate(`/api/babies/${babyId}/diapers`);
-      toast(log.flagged ? "Unflagged" : "Flagged for the doctor", "success");
+      toast(appointmentIds.length === 0 ? "Unflagged" : "Flagged for the doctor", "success");
     } else toast("Failed to update", "error");
   }
 
@@ -386,7 +388,7 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground text-sm flex items-center gap-1.5">
                       {DIAPER_LABELS[log.type] ?? log.type}
-                      {log.flagged && <span className="text-pink-500"><FlagIcon filled /></span>}
+                      {log.appointmentIds.length > 0 && <span className="text-pink-500"><FlagIcon filled /></span>}
                     </p>
                     <p className="text-xs text-foreground/50 truncate">{log.notes ?? "No note"}</p>
                   </div>
@@ -395,11 +397,11 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
                     <p className="text-xs text-foreground/40">{timeAgo(log.loggedAt)}</p>
                   </div>
                   <button
-                    onClick={() => handleToggleFlagDiaper(log)}
-                    className={`transition-colors flex-shrink-0 ${log.flagged ? "text-pink-500 hover:text-pink-600" : "text-foreground/20 hover:text-foreground/60"}`}
-                    aria-label={log.flagged ? "Unflag for the doctor" : "Flag for the doctor"}
+                    onClick={() => setFlaggingDiaper(log)}
+                    className={`transition-colors flex-shrink-0 ${log.appointmentIds.length > 0 ? "text-pink-500 hover:text-pink-600" : "text-foreground/20 hover:text-foreground/60"}`}
+                    aria-label={log.appointmentIds.length > 0 ? "Edit flagged appointments" : "Flag for the doctor"}
                   >
-                    <FlagIcon filled={log.flagged} />
+                    <FlagIcon filled={log.appointmentIds.length > 0} />
                   </button>
                   <button onClick={() => handleEditDiaper(log)} className="text-foreground/20 hover:text-foreground/60 transition-colors flex-shrink-0">
                     <EditIcon />
@@ -519,6 +521,14 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
           <Button type="submit" loading={diaperLoading} className="w-full !py-3">{editingDiaperId ? "Update diaper" : "Save diaper"}</Button>
         </form>
       </Modal>
+
+      <FlagAppointmentsModal
+        open={!!flaggingDiaper}
+        onClose={() => setFlaggingDiaper(null)}
+        babyId={babyId}
+        currentAppointmentIds={flaggingDiaper?.appointmentIds ?? []}
+        onSave={(appointmentIds) => handleSaveDiaperFlags(flaggingDiaper!.id, appointmentIds)}
+      />
     </div>
   );
 }

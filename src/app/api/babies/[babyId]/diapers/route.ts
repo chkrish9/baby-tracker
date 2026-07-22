@@ -14,13 +14,22 @@ export async function GET(req: Request, { params }: Params) {
 
   const { searchParams } = new URL(req.url);
   const where: Prisma.DiaperLogWhereInput = { babyId };
-  if (searchParams.get("flagged") === "true") where.flagged = true;
   const appointmentId = searchParams.get("appointmentId");
-  if (appointmentId === "unassigned") where.appointmentId = null;
-  else if (appointmentId) where.appointmentId = appointmentId;
+  if (appointmentId === "unassigned") where.appointmentLinks = { none: {} };
+  else if (appointmentId) where.appointmentLinks = { some: { appointmentId } };
+  else if (searchParams.get("flagged") === "true") where.appointmentLinks = { some: {} };
 
-  const logs = await db.diaperLog.findMany({ where, orderBy: { loggedAt: "desc" }, take: 500 });
-  return NextResponse.json(logs);
+  const logs = await db.diaperLog.findMany({
+    where,
+    orderBy: { loggedAt: "desc" },
+    take: 500,
+    include: { appointmentLinks: { select: { appointmentId: true } } },
+  });
+  const result = logs.map(({ appointmentLinks, ...log }) => ({
+    ...log,
+    appointmentIds: appointmentLinks.map((l) => l.appointmentId),
+  }));
+  return NextResponse.json(result);
 }
 
 export async function POST(req: Request, { params }: Params) {

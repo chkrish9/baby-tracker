@@ -9,8 +9,8 @@ import { useToast } from "@/components/ui/Toast";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 interface DoctorNoteItem { id: string; question: string; answered: boolean; createdAt: string; }
-interface Photo { id: string; path: string; filename: string; size: number; flagged: boolean; }
-interface DiaperLogItem { id: string; type: string; notes?: string | null; flagged: boolean; loggedAt: string; }
+interface Photo { id: string; path: string; filename: string; size: number; appointmentIds: string[]; }
+interface DiaperLogItem { id: string; type: string; notes?: string | null; appointmentIds: string[]; loggedAt: string; }
 
 const DIAPER_LABELS: Record<string, string> = {
   WET: "Wet diaper", DIRTY: "Dirty diaper", BOTH: "Mixed diaper", DRY: "Dry diaper"
@@ -89,21 +89,15 @@ export function VisitPrep({ babyId, appointmentId }: VisitPrepProps) {
   }
 
   async function handleUnflagPhoto(photoId: string) {
-    const res = await fetch(`/api/babies/${babyId}/photos/${photoId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ flagged: false }),
-    });
+    if (!appointmentId) return;
+    const res = await fetch(`/api/babies/${babyId}/photos/${photoId}/appointments/${appointmentId}`, { method: "DELETE" });
     if (res.ok) { mutate(photosKey); toast("Unflagged", "success"); }
     else toast("Failed to update", "error");
   }
 
   async function handleUnflagDiaper(logId: string) {
-    const res = await fetch(`/api/babies/${babyId}/diapers/${logId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ flagged: false }),
-    });
+    if (!appointmentId) return;
+    const res = await fetch(`/api/babies/${babyId}/diapers/${logId}/appointments/${appointmentId}`, { method: "DELETE" });
     if (res.ok) { mutate(diapersKey); toast("Unflagged", "success"); }
     else toast("Failed to update", "error");
   }

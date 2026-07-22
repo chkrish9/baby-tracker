@@ -102,20 +102,17 @@ enum FeedingType {
 }
 
 model DiaperLog {
-  id            String             @id @default(cuid())
-  babyId        String
-  type          DiaperType
-  notes         String?
-  flagged       Boolean            @default(false)
-  appointmentId String?
-  loggedAt      DateTime           @default(now())
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  baby          Baby               @relation(fields: [babyId], references: [id], onDelete: Cascade)
-  appointment   DoctorAppointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  id               String              @id @default(cuid())
+  babyId           String
+  type             DiaperType
+  notes            String?
+  loggedAt         DateTime            @default(now())
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  baby             Baby                @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  appointmentLinks DiaperAppointment[]
 
   @@index([babyId, loggedAt(sort: Desc)])
-  @@index([appointmentId])
 }
 
 enum DiaperType {
@@ -126,21 +123,42 @@ enum DiaperType {
 }
 
 model BabyPhoto {
-  id            String             @id @default(cuid())
-  babyId        String
-  path          String // relative: babies/[id]/photos/filename
-  filename      String
-  size          Int
-  mimeType      String
-  caption       String?
-  flagged       Boolean            @default(false)
-  appointmentId String?
-  takenAt       DateTime           @default(now())
-  createdAt     DateTime           @default(now())
-  baby          Baby               @relation(fields: [babyId], references: [id], onDelete: Cascade)
-  appointment   DoctorAppointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  id               String             @id @default(cuid())
+  babyId           String
+  path             String // relative: babies/[id]/photos/filename
+  filename         String
+  size             Int
+  mimeType         String
+  caption          String?
+  takenAt          DateTime           @default(now())
+  createdAt        DateTime           @default(now())
+  baby             Baby               @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  appointmentLinks PhotoAppointment[]
 
   @@index([babyId, takenAt(sort: Desc)])
+}
+
+model PhotoAppointment {
+  id            String            @id @default(cuid())
+  photoId       String
+  appointmentId String
+  createdAt     DateTime          @default(now())
+  photo         BabyPhoto         @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  appointment   DoctorAppointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@unique([photoId, appointmentId])
+  @@index([appointmentId])
+}
+
+model DiaperAppointment {
+  id            String            @id @default(cuid())
+  diaperLogId   String
+  appointmentId String
+  createdAt     DateTime          @default(now())
+  diaperLog     DiaperLog         @relation(fields: [diaperLogId], references: [id], onDelete: Cascade)
+  appointment   DoctorAppointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@unique([diaperLogId, appointmentId])
   @@index([appointmentId])
 }
 
@@ -160,16 +178,16 @@ model DoctorNote {
 }
 
 model DoctorAppointment {
-  id        String       @id @default(cuid())
-  babyId    String
-  date      DateTime
-  notes     String?
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  baby      Baby         @relation(fields: [babyId], references: [id], onDelete: Cascade)
-  questions DoctorNote[]
-  photos    BabyPhoto[]
-  diapers   DiaperLog[]
+  id          String              @id @default(cuid())
+  babyId      String
+  date        DateTime
+  notes       String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  baby        Baby                @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  questions   DoctorNote[]
+  photoLinks  PhotoAppointment[]
+  diaperLinks DiaperAppointment[]
 
   @@index([babyId, date])
 }

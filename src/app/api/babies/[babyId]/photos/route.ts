@@ -14,13 +14,21 @@ export async function GET(req: Request, { params }: Params) {
 
   const { searchParams } = new URL(req.url);
   const where: Prisma.BabyPhotoWhereInput = { babyId };
-  if (searchParams.get("flagged") === "true") where.flagged = true;
   const appointmentId = searchParams.get("appointmentId");
-  if (appointmentId === "unassigned") where.appointmentId = null;
-  else if (appointmentId) where.appointmentId = appointmentId;
+  if (appointmentId === "unassigned") where.appointmentLinks = { none: {} };
+  else if (appointmentId) where.appointmentLinks = { some: { appointmentId } };
+  else if (searchParams.get("flagged") === "true") where.appointmentLinks = { some: {} };
 
-  const photos = await db.babyPhoto.findMany({ where, orderBy: { takenAt: "desc" } });
-  return NextResponse.json(photos);
+  const photos = await db.babyPhoto.findMany({
+    where,
+    orderBy: { takenAt: "desc" },
+    include: { appointmentLinks: { select: { appointmentId: true } } },
+  });
+  const result = photos.map(({ appointmentLinks, ...photo }) => ({
+    ...photo,
+    appointmentIds: appointmentLinks.map((l) => l.appointmentId),
+  }));
+  return NextResponse.json(result);
 }
 
 export async function POST(req: Request, { params }: Params) {

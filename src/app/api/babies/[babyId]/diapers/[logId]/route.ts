@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession, unauthorized, forbidden, notFound, assertParentOf } from "@/lib/auth-helpers";
 import { diaperUpdateSchema } from "@/lib/validation";
-import { findNextAppointmentId } from "@/lib/appointments";
 
 type Params = { params: Promise<{ babyId: string; logId: string }> };
 
@@ -19,14 +18,7 @@ export async function PATCH(req: Request, { params }: Params) {
   const existing = await db.diaperLog.findUnique({ where: { id: logId } });
   if (!existing || existing.babyId !== babyId) return notFound();
 
-  const data = { ...parsed.data };
-  if (data.flagged === true && data.appointmentId === undefined) {
-    data.appointmentId = await findNextAppointmentId(babyId);
-  } else if (data.flagged === false && data.appointmentId === undefined) {
-    data.appointmentId = null;
-  }
-
-  const log = await db.diaperLog.update({ where: { id: logId }, data });
+  const log = await db.diaperLog.update({ where: { id: logId }, data: parsed.data });
   return NextResponse.json(log);
 }
 

@@ -31,8 +31,6 @@ export const diaperCreateSchema = z.object({
   type: z.enum(["WET", "DIRTY", "BOTH", "DRY"]),
   notes: z.string().trim().max(1000).optional().nullable(),
   loggedAt: z.coerce.date().optional(),
-  flagged: z.boolean().optional(),
-  appointmentId: z.string().optional().nullable(),
 });
 
 export const diaperUpdateSchema = diaperCreateSchema.partial();
@@ -60,8 +58,10 @@ export const inviteCreateSchema = z.object({
 
 export const photoUpdateSchema = z.object({
   caption: z.string().trim().max(500).optional().nullable(),
-  flagged: z.boolean().optional(),
-  appointmentId: z.string().optional().nullable(),
+});
+
+export const appointmentLinksSchema = z.object({
+  appointmentIds: z.array(z.string().min(1)).max(50),
 });
 
 export const userSettingsSchema = z.object({
