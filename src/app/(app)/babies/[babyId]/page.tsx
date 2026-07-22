@@ -13,6 +13,7 @@ import {
   FEED_SERIES, DIAPER_SERIES, RANGE_OPTIONS, daysForRange, bucketByDay,
   feedingExtra, feedTooltipExtraLines, FEED_EXTRA_COLUMNS, type ChartRange,
 } from "@/lib/charts";
+import { formatOz, formatMl, formatMinutes } from "@/lib/utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -76,6 +77,15 @@ function CameraIcon({ className }: { className?: string }) {
   );
 }
 
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="9" cy="9" r="7" />
+      <path d="M9 5v4l3 2" />
+    </svg>
+  );
+}
+
 function PlusIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -135,6 +145,12 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
   const diapersToday = diapers?.filter((d: DiaperLog) => new Date(d.loggedAt).toDateString() === today).length ?? 0;
   const lastDiaper: DiaperLog | undefined = diapers?.[0];
 
+  const feedingsToday: FeedingLog[] = feedings?.filter((f: FeedingLog) => new Date(f.loggedAt).toDateString() === today) ?? [];
+  const feedTotalsToday: Record<string, number> = {};
+  feedingsToday.forEach((f) => feedingExtra(feedTotalsToday, f));
+  const bottleMlToday = feedTotalsToday.bottleMl ?? 0;
+  const breastMinToday = (feedTotalsToday.breastLeftMin ?? 0) + (feedTotalsToday.breastRightMin ?? 0);
+
   // Combined recent events (last 4)
   const allEvents: Array<{ id: string; kind: "feeding" | "diaper"; type: string; notes?: string | null; loggedAt: string }> = [
     ...(feedings?.map((f: FeedingLog) => ({ ...f, kind: "feeding" as const })) ?? []),
@@ -191,6 +207,26 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
           </div>
           <p className="text-xl font-bold text-foreground">{diapersToday}</p>
           {lastDiaper && <p className="text-xs text-foreground/50 mt-0.5">Last {timeAgo(lastDiaper.loggedAt)}</p>}
+        </div>
+      </div>
+
+      {/* Feed totals today */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
+          <div className="flex items-center gap-1.5 text-xs text-foreground/40 font-medium uppercase tracking-wide mb-1.5">
+            <BottleIcon />
+            Total bottle feed today
+          </div>
+          <p className="text-xl font-bold text-foreground">
+            {bottleMlToday > 0 ? `${formatOz(bottleMlToday)} / ${formatMl(bottleMlToday)}` : "–"}
+          </p>
+        </div>
+        <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
+          <div className="flex items-center gap-1.5 text-xs text-foreground/40 font-medium uppercase tracking-wide mb-1.5">
+            <ClockIcon />
+            Total breast time today
+          </div>
+          <p className="text-xl font-bold text-foreground">{breastMinToday > 0 ? formatMinutes(breastMinToday) : "–"}</p>
         </div>
       </div>
 
