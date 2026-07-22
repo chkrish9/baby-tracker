@@ -35,6 +35,15 @@ function PhotosIcon() {
   );
 }
 
+function HealthIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M11 4l6.5 6.5c1.8 1.8 1.8 4.7 0 6.5s-4.7 1.8-6.5 0L11 17l0 0-6.5-6.5c-1.8-1.8-1.8-4.7 0-6.5s4.7-1.8 6.5 0z" />
+      <path d="M8 11h2l1-2 2 4 1-2h2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function SettingsIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.6">
@@ -61,16 +70,19 @@ export function BottomNav() {
   const isDashboard = pathname === "/dashboard" || (!!activeBabyId && pathname === `/babies/${activeBabyId}`);
   const isLogs = !!activeBabyId && (pathname.startsWith(`/babies/${activeBabyId}/feeding`) || pathname.startsWith(`/babies/${activeBabyId}/diapers`));
   const isPhotos = !!activeBabyId && (pathname.startsWith(`/babies/${activeBabyId}/documents`) || pathname.startsWith(`/babies/${activeBabyId}/photos`));
+  const isHealth = !!activeBabyId && pathname.startsWith(`/babies/${activeBabyId}/health`);
   const isSettings = pathname.startsWith("/settings");
 
   const dashHref = activeBabyId ? `/babies/${activeBabyId}` : "/dashboard";
   const logsHref = activeBabyId ? `/babies/${activeBabyId}/feeding` : "/dashboard";
   const photosHref = activeBabyId ? `/babies/${activeBabyId}/photos` : "/dashboard";
+  const healthHref = activeBabyId ? `/babies/${activeBabyId}/health` : "/dashboard";
 
   const items = [
     { href: dashHref, label: "Dashboard", icon: <DashboardIcon active={isDashboard} />, active: isDashboard },
     { href: logsHref, label: "Logs", icon: <LogsIcon />, active: isLogs },
     { href: photosHref, label: "Photos", icon: <PhotosIcon />, active: isPhotos },
+    { href: healthHref, label: "Health", icon: <HealthIcon />, active: isHealth },
     { href: "/settings", label: "Settings", icon: <SettingsIcon />, active: isSettings },
   ];
 

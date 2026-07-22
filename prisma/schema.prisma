@@ -40,6 +40,9 @@ model Baby {
   inviteLinks  InviteBaby[]
   doctorNotes  DoctorNote[]
   appointments DoctorAppointment[]
+  vaccinations   Vaccination[]
+  growthRecords  GrowthRecord[]
+  healthRecords  HealthRecord[]
 }
 
 model BabyParent {
@@ -204,6 +207,52 @@ model DoctorAppointment {
   diaperLinks DiaperAppointment[]
 
   @@index([babyId, date])
+}
+
+model Vaccination {
+  id        String   @id @default(cuid())
+  babyId    String
+  name      String
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  baby      Baby     @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@index([babyId, date(sort: Desc)])
+}
+
+model GrowthRecord {
+  id         String     @id @default(cuid())
+  babyId     String
+  type       GrowthType
+  value      Float
+  unit       String // "kg" | "lb" for WEIGHT, "cm" | "in" for HEIGHT
+  recordedAt DateTime
+  notes      String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  baby       Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@index([babyId, type, recordedAt(sort: Desc)])
+}
+
+enum GrowthType {
+  WEIGHT
+  HEIGHT
+}
+
+model HealthRecord {
+  id        String   @id @default(cuid())
+  babyId    String
+  title     String
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  baby      Baby     @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@index([babyId, date(sort: Desc)])
 }
 
 model MedicalDocument {

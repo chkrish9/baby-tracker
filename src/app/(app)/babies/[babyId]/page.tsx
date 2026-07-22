@@ -4,14 +4,16 @@ import Link from "next/link";
 import { mutate } from "swr";
 import useSWR from "swr";
 import { useBaby } from "@/hooks/useBaby";
+import { useGrowthRecords } from "@/hooks/useHealth";
 import { Avatar } from "@/components/ui/Avatar";
 import { Spinner } from "@/components/ui/Spinner";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { WeeklyStackedBarChart } from "@/components/charts/WeeklyStackedBarChart";
+import { GrowthLineChart } from "@/components/charts/GrowthLineChart";
 import {
   FEED_SERIES, DIAPER_SERIES, RANGE_OPTIONS, daysForRange, bucketByDay,
-  feedingExtra, feedTooltipExtraLines, FEED_EXTRA_COLUMNS, type ChartRange,
+  feedingExtra, feedTooltipExtraLines, FEED_EXTRA_COLUMNS, toGrowthPoints, type ChartRange,
 } from "@/lib/charts";
 import { formatOz, formatMl, formatMinutes } from "@/lib/utils";
 
@@ -86,6 +88,24 @@ function ClockIcon({ className }: { className?: string }) {
   );
 }
 
+function ScaleIcon({ className }: { className?: string }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="9" cy="9" r="7" />
+      <path d="M9 5v4l2.5 2.5" />
+    </svg>
+  );
+}
+
+function RulerIcon({ className }: { className?: string }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="2" y="5" width="14" height="8" rx="1.5" />
+      <path d="M5 5v2.5M8 5v2.5M11 5v2.5M14 5v2.5" />
+    </svg>
+  );
+}
+
 function PlusIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -102,6 +122,8 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
   const { data: baby, isLoading } = useBaby(babyId);
   const { data: feedings } = useSWR(`/api/babies/${babyId}/feeding`, fetcher);
   const { data: diapers } = useSWR(`/api/babies/${babyId}/diapers`, fetcher);
+  const { data: weightRecords } = useGrowthRecords(babyId, "WEIGHT");
+  const { data: heightRecords } = useGrowthRecords(babyId, "HEIGHT");
   const { data: allBabies } = useSWR("/api/babies", fetcher);
   const { toast } = useToast();
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -112,6 +134,8 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
   const chartDays = useMemo(() => daysForRange(chartRange), [chartRange]);
   const feedChartData = useMemo(() => bucketByDay(feedings ?? [], chartDays, feedingExtra), [feedings, chartDays]);
   const diaperChartData = useMemo(() => bucketByDay(diapers ?? [], chartDays), [diapers, chartDays]);
+  const weightPoints = useMemo(() => toGrowthPoints(weightRecords ?? []), [weightRecords]);
+  const heightPoints = useMemo(() => toGrowthPoints(heightRecords ?? []), [heightRecords]);
   const chartRangeOption = RANGE_OPTIONS.find((o) => o.value === chartRange) ?? RANGE_OPTIONS[2];
   const chartRangeLabel = chartRangeOption.label;
   const chartRangePhrase = chartRangeOption.phrase;
@@ -144,6 +168,9 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
   const today = new Date().toDateString();
   const diapersToday = diapers?.filter((d: DiaperLog) => new Date(d.loggedAt).toDateString() === today).length ?? 0;
   const lastDiaper: DiaperLog | undefined = diapers?.[0];
+
+  const latestWeight = weightRecords?.[0];
+  const latestHeight = heightRecords?.[0];
 
   const feedingsToday: FeedingLog[] = feedings?.filter((f: FeedingLog) => new Date(f.loggedAt).toDateString() === today) ?? [];
   const feedTotalsToday: Record<string, number> = {};
@@ -230,6 +257,38 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
         </div>
       </div>
 
+      {/* Growth stats */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
+          <div className="flex items-center gap-1.5 text-xs text-foreground/40 font-medium uppercase tracking-wide mb-1.5">
+            <ScaleIcon />
+            Latest weight
+          </div>
+          {latestWeight ? (
+            <>
+              <p className="text-xl font-bold text-foreground">{latestWeight.value} {latestWeight.unit}</p>
+              <p className="text-xs text-foreground/50 mt-0.5">{timeAgo(latestWeight.recordedAt)}</p>
+            </>
+          ) : (
+            <p className="text-sm text-foreground/40">No weight logged</p>
+          )}
+        </div>
+        <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
+          <div className="flex items-center gap-1.5 text-xs text-foreground/40 font-medium uppercase tracking-wide mb-1.5">
+            <RulerIcon />
+            Latest height
+          </div>
+          {latestHeight ? (
+            <>
+              <p className="text-xl font-bold text-foreground">{latestHeight.value} {latestHeight.unit}</p>
+              <p className="text-xs text-foreground/50 mt-0.5">{timeAgo(latestHeight.recordedAt)}</p>
+            </>
+          ) : (
+            <p className="text-sm text-foreground/40">No height logged</p>
+          )}
+        </div>
+      </div>
+
       {/* Doctor visit card */}
       <Link href={`/babies/${babyId}/doctor-visit`}>
         <div className="flex items-center gap-3 bg-pink-500 rounded-2xl p-4 text-white cursor-pointer hover:bg-pink-600 transition-colors">
@@ -279,6 +338,20 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
           data={diaperChartData}
           rangeLabel={chartRangeLabel}
           emptyLabel={`No diaper changes logged ${chartRangePhrase}`}
+        />
+        <GrowthLineChart
+          title="Weight"
+          points={weightPoints}
+          unit={latestWeight?.unit ?? "kg"}
+          emptyLabel="No weight logged yet"
+          color="#2a78d6"
+        />
+        <GrowthLineChart
+          title="Height"
+          points={heightPoints}
+          unit={latestHeight?.unit ?? "cm"}
+          emptyLabel="No height logged yet"
+          color="#1baf7a"
         />
       </div>
 

@@ -90,3 +90,14 @@ export const FEED_EXTRA_COLUMNS = [
     },
   },
 ];
+
+export interface GrowthPoint {
+  date: Date;
+  value: number;
+}
+
+export function toGrowthPoints(records: { recordedAt: string; value: number }[]): GrowthPoint[] {
+  return [...records]
+    .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime())
+    .map((r) => ({ date: new Date(r.recordedAt), value: r.value }));
+}

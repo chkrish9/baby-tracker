@@ -60,6 +60,32 @@ export const appointmentCreateSchema = z.object({
 
 export const appointmentUpdateSchema = appointmentCreateSchema.partial();
 
+export const vaccinationCreateSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  date: z.coerce.date(),
+  notes: z.string().trim().max(1000).optional().nullable(),
+});
+
+export const vaccinationUpdateSchema = vaccinationCreateSchema.partial();
+
+export const growthRecordCreateSchema = z.object({
+  type: z.enum(["WEIGHT", "HEIGHT"]),
+  value: z.coerce.number().positive(),
+  unit: z.enum(["kg", "lb", "cm", "in"]),
+  recordedAt: z.coerce.date(),
+  notes: z.string().trim().max(1000).optional().nullable(),
+});
+
+export const growthRecordUpdateSchema = growthRecordCreateSchema.partial();
+
+export const healthRecordCreateSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  date: z.coerce.date(),
+  notes: z.string().trim().max(1000).optional().nullable(),
+});
+
+export const healthRecordUpdateSchema = healthRecordCreateSchema.partial();
+
 export const inviteCreateSchema = z.object({
   email: z.string().email(),
   babyIds: z.array(z.string().min(1)).min(1),
