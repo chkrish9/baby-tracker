@@ -37,7 +37,11 @@ function TrashIcon() {
   );
 }
 
-interface Baby { id: string; name: string; birthDate: string; profilePhoto?: string | null; }
+interface Baby { id: string; name: string; firstName?: string | null; lastName?: string | null; birthDate: string; profilePhoto?: string | null; }
+
+function fullName(baby: Baby) {
+  return [baby.firstName, baby.lastName].filter(Boolean).join(" ") || baby.name;
+}
 
 export default function DashboardPage() {
   const { data: babies, isLoading } = useBabies();
@@ -63,7 +67,7 @@ export default function DashboardPage() {
   async function handleDelete(e: React.MouseEvent, baby: Baby) {
     e.preventDefault();
     e.stopPropagation();
-    const confirmed = window.confirm(`Delete ${baby.name}? This permanently removes all their logs, photos, and appointments.`);
+    const confirmed = window.confirm(`Delete ${fullName(baby)}? This permanently removes all their logs, photos, and appointments.`);
     if (!confirmed) return;
     setDeletingId(baby.id);
     const res = await fetch(`/api/babies/${baby.id}`, { method: "DELETE" });
@@ -99,16 +103,16 @@ export default function DashboardPage() {
         {babies?.map((baby: Baby, i: number) => (
           <Link key={baby.id} href={`/babies/${baby.id}`}>
             <div className="flex items-center gap-4 bg-white rounded-2xl border border-pink-100/60 p-4 hover:border-pink-200 transition-colors cursor-pointer">
-              <Avatar src={baby.profilePhoto ? `/api/files/${baby.profilePhoto}` : undefined} name={baby.name} size={52} colorIndex={i} />
+              <Avatar src={baby.profilePhoto ? `/api/files/${baby.profilePhoto}` : undefined} name={fullName(baby)} size={52} colorIndex={i} />
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-foreground">{baby.name}</p>
+                <p className="font-semibold text-foreground">{fullName(baby)}</p>
                 <p className="text-sm text-foreground/50">{ageLabel(baby.birthDate)}</p>
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
                 <button
                   onClick={(e) => handleEdit(e, baby.id)}
                   className="flex items-center justify-center w-8 h-8 rounded-xl text-foreground/30 hover:text-foreground/60 hover:bg-pink-50 transition-colors"
-                  aria-label={`Edit ${baby.name}`}
+                  aria-label={`Edit ${fullName(baby)}`}
                 >
                   <EditIcon />
                 </button>
@@ -116,7 +120,7 @@ export default function DashboardPage() {
                   onClick={(e) => handleDelete(e, baby)}
                   disabled={deletingId === baby.id}
                   className="flex items-center justify-center w-8 h-8 rounded-xl text-foreground/30 hover:text-red-400 hover:bg-red-50 transition-colors disabled:opacity-50"
-                  aria-label={`Delete ${baby.name}`}
+                  aria-label={`Delete ${fullName(baby)}`}
                 >
                   <TrashIcon />
                 </button>
