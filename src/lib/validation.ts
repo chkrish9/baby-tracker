@@ -54,6 +54,7 @@ export const appointmentUpdateSchema = appointmentCreateSchema.partial();
 
 export const inviteCreateSchema = z.object({
   email: z.string().email(),
+  babyIds: z.array(z.string().min(1)).min(1),
 });
 
 export const photoUpdateSchema = z.object({

@@ -32,7 +32,7 @@ model Baby {
   diapers      DiaperLog[]
   photos       BabyPhoto[]
   documents    MedicalDocument[]
-  invites      Invite[]
+  inviteLinks  InviteBaby[]
   doctorNotes  DoctorNote[]
   appointments DoctorAppointment[]
 }
@@ -58,18 +58,27 @@ enum ParentRole {
 
 model Invite {
   id              String       @id @default(cuid())
-  babyId          String
   invitedByUserId String
   email           String
   status          InviteStatus @default(PENDING)
   token           String       @unique @default(cuid())
   expiresAt       DateTime
   createdAt       DateTime     @default(now())
-  baby            Baby         @relation(fields: [babyId], references: [id], onDelete: Cascade)
   invitedBy       User         @relation("InviteSender", fields: [invitedByUserId], references: [id])
+  babies          InviteBaby[]
 
-  @@index([babyId])
   @@index([email])
+}
+
+model InviteBaby {
+  id       String @id @default(cuid())
+  inviteId String
+  babyId   String
+  invite   Invite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  baby     Baby   @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@unique([inviteId, babyId])
+  @@index([babyId])
 }
 
 enum InviteStatus {

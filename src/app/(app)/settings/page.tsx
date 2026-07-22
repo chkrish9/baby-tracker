@@ -5,14 +5,20 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Avatar } from "@/components/ui/Avatar";
+import { Badge } from "@/components/ui/Badge";
 import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
 import { useToast } from "@/components/ui/Toast";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
+interface ParentLink { id: string; userId: string; role: "OWNER" | "PARENT"; user: { id: string; name: string | null; email: string }; }
+interface BabyWithParents { id: string; name: string; parents: ParentLink[]; }
+
 export default function SettingsPage() {
   const { data: user } = useSWR("/api/user/settings", fetcher);
   const { data: session } = useSession();
+  const { data: babies } = useSWR<BabyWithParents[]>("/api/babies", fetcher);
   const { toast } = useToast();
   const router = useRouter();
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -20,6 +26,12 @@ export default function SettingsPage() {
   const [name, setName] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
+
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [selectedBabyIds, setSelectedBabyIds] = useState<Set<string>>(new Set());
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -52,6 +64,48 @@ export default function SettingsPage() {
     } else {
       toast("Failed to save profile", "error");
     }
+  }
+
+  function toggleBaby(id: string) {
+    setSelectedBabyIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleInvite(e: React.FormEvent) {
+    e.preventDefault();
+    if (selectedBabyIds.size === 0) { toast("Select at least one baby to share", "error"); return; }
+    setInviteLoading(true);
+    const res = await fetch("/api/invites", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: inviteEmail, babyIds: Array.from(selectedBabyIds) }),
+    });
+    setInviteLoading(false);
+    if (!res.ok) { const d = await res.json().catch(() => ({})); toast(d.error ?? "Failed to create invite", "error"); return; }
+    const { token } = await res.json();
+    setInviteLink(`${window.location.origin}/invite/${token}`);
+    toast("Invite created!", "success");
+    setInviteEmail("");
+    setSelectedBabyIds(new Set());
+  }
+
+  async function handleRemoveParent(babyId: string, link: ParentLink) {
+    const isSelf = link.userId === session?.user?.id;
+    const confirmed = window.confirm(
+      isSelf ? "Leave this baby? You'll lose access unless re-invited." : `Remove ${link.user.name ?? link.user.email} from this baby?`
+    );
+    if (!confirmed) return;
+
+    setRemovingId(link.id);
+    const res = await fetch(`/api/babies/${babyId}/parents/${link.id}`, { method: "DELETE" });
+    setRemovingId(null);
+    if (!res.ok) { const d = await res.json().catch(() => ({})); toast(d.error ?? "Failed to remove", "error"); return; }
+    await mutate("/api/babies");
+    toast(isSelf ? "You left this baby" : "Co-parent removed", "success");
   }
 
   async function handleChangePassword(e: React.FormEvent) {
@@ -121,6 +175,79 @@ export default function SettingsPage() {
           </div>
         </form>
         <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e.target.files)} />
+      </div>
+
+      {/* Parents & invites */}
+      <div className="bg-white rounded-2xl border border-pink-100/60 p-4 mb-3">
+        <p className="text-xs font-semibold text-foreground/40 tracking-widest uppercase mb-4">Parents & invites</p>
+
+        {babies?.map((baby) => {
+          if (!baby.parents.length) return null;
+          const myLink = baby.parents.find((p) => p.userId === session?.user?.id);
+          const isOwner = myLink?.role === "OWNER";
+          return (
+            <div key={baby.id} className="mb-4 last:mb-0">
+              <p className="text-sm font-medium text-foreground mb-2">{baby.name}</p>
+              <div className="space-y-2.5">
+                {baby.parents.map((link) => {
+                  const canRemove = link.role !== "OWNER" && (isOwner || link.userId === session?.user?.id);
+                  return (
+                    <div key={link.id} className="flex items-center gap-3">
+                      <Avatar name={link.user.name ?? link.user.email} size={32} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{link.user.name ?? link.user.email}</p>
+                        {link.user.name && <p className="text-xs text-foreground/50 truncate">{link.user.email}</p>}
+                      </div>
+                      {link.role === "OWNER" && <Badge variant="pink">Owner</Badge>}
+                      {canRemove && (
+                        <Button size="sm" variant="danger" loading={removingId === link.id} onClick={() => handleRemoveParent(baby.id, link)}>
+                          {link.userId === session?.user?.id ? "Leave" : "Remove"}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+
+        <form onSubmit={handleInvite} className="space-y-3 pt-1 border-t border-pink-100/60 mt-1">
+          <div className="pt-3">
+            <label className="text-sm font-medium text-foreground block mb-1.5">Their email address</label>
+            <Input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} required placeholder="parent@example.com" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground mb-2">Share access to</p>
+            <div className="space-y-2">
+              {babies?.map((baby) => (
+                <label
+                  key={baby.id}
+                  className="flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3 cursor-pointer transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedBabyIds.has(baby.id)}
+                    onChange={() => toggleBaby(baby.id)}
+                    className="w-4 h-4 rounded accent-pink-500 flex-shrink-0"
+                  />
+                  <span className="text-sm font-medium text-foreground">{baby.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <Button type="submit" loading={inviteLoading} size="sm">Generate invite link</Button>
+        </form>
+
+        {inviteLink && (
+          <div className="bg-[#e1f7ee] border border-[#bdebd9] rounded-2xl p-4 mt-3">
+            <p className="text-sm font-medium text-emerald-800 mb-2">Share this link with them:</p>
+            <p className="text-xs text-emerald-700 break-all font-mono bg-white rounded-lg px-3 py-2 border border-[#bdebd9]">{inviteLink}</p>
+            <Button size="sm" variant="secondary" className="mt-3" onClick={() => { navigator.clipboard.writeText(inviteLink); toast("Copied!", "success"); }}>
+              Copy link
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Change password */}

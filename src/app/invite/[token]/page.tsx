@@ -6,7 +6,13 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 
-interface InviteInfo { baby: { id: string; name: string }; invitedBy: { name?: string; email: string }; email: string; }
+interface InviteInfo { babies: { id: string; name: string }[]; invitedBy: { name?: string; email: string }; email: string; }
+
+function joinNames(names: string[]) {
+  if (names.length <= 1) return names[0] ?? "";
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+}
 
 export default function InviteAcceptPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -30,7 +36,7 @@ export default function InviteAcceptPage({ params }: { params: Promise<{ token: 
     setLoading(true);
     const res = await fetch(`/api/invites/${token}`, { method: "POST" });
     setLoading(false);
-    if (res.ok) { const d = await res.json(); router.push(`/babies/${d.babyId}`); }
+    if (res.ok) { const d = await res.json(); router.push(`/babies/${d.babyIds[0]}`); }
     else { const d = await res.json().catch(() => ({})); setError(d.error ?? "Failed to accept invite"); }
   }
 
@@ -52,7 +58,8 @@ export default function InviteAcceptPage({ params }: { params: Promise<{ token: 
           <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6 space-y-4">
             <h1 className="text-xl font-bold text-foreground">You&apos;re invited!</h1>
             <p className="text-sm text-foreground">
-              <span className="font-medium">{info.invitedBy.name ?? info.invitedBy.email}</span> invited you to track <span className="font-medium text-pink-600">{info.baby.name}</span>.
+              <span className="font-medium">{info.invitedBy.name ?? info.invitedBy.email}</span> invited you to track{" "}
+              <span className="font-medium text-pink-600">{joinNames(info.babies.map((b) => b.name))}</span>.
             </p>
             {!session && (
               <p className="text-xs text-pink-400">You&apos;ll need to sign in or create an account first.</p>
