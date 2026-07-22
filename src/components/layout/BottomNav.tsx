@@ -3,14 +3,25 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useBabies } from "@/hooks/useBaby";
 
-function DashboardIcon({ active }: { active: boolean }) {
+function DashboardIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke={active ? "currentColor" : "currentColor"} strokeWidth="1.6">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.6">
       <rect x="2" y="2" width="8" height="8" rx="2" />
       <rect x="12" y="2" width="8" height="8" rx="2" />
       <rect x="2" y="12" width="8" height="8" rx="2" />
       <rect x="12" y="12" width="8" height="8" rx="2" />
+    </svg>
+  );
+}
+
+function HomeIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 10.5L11 3l8 7.5" />
+      <path d="M5 9v9a1 1 0 001 1h10a1 1 0 001-1V9" />
+      <path d="M8.5 19v-5.5a1 1 0 011-1h3a1 1 0 011 1V19" />
     </svg>
   );
 }
@@ -64,6 +75,8 @@ function SettingsIcon() {
 export function BottomNav() {
   const pathname = usePathname();
   const [activeBabyId, setActiveBabyId] = useState<string | null>(null);
+  const { data: babies } = useBabies();
+  const hasBabies = babies === undefined ? true : babies.length > 0;
 
   useEffect(() => {
     const match = pathname.match(/^\/babies\/([^/]+)/);
@@ -87,10 +100,14 @@ export function BottomNav() {
   const healthHref = activeBabyId ? `/babies/${activeBabyId}/health` : "/dashboard";
 
   const items = [
-    { href: dashHref, label: "Dashboard", icon: <DashboardIcon active={isDashboard} />, active: isDashboard },
-    { href: logsHref, label: "Logs", icon: <LogsIcon />, active: isLogs },
-    { href: photosHref, label: "Photos", icon: <PhotosIcon />, active: isPhotos },
-    { href: healthHref, label: "Health", icon: <HealthIcon />, active: isHealth },
+    { href: dashHref, label: hasBabies ? "Dashboard" : "Home", icon: hasBabies ? <DashboardIcon /> : <HomeIcon />, active: isDashboard },
+    ...(hasBabies
+      ? [
+          { href: logsHref, label: "Logs", icon: <LogsIcon />, active: isLogs },
+          { href: photosHref, label: "Photos", icon: <PhotosIcon />, active: isPhotos },
+          { href: healthHref, label: "Health", icon: <HealthIcon />, active: isHealth },
+        ]
+      : []),
     { href: "/settings", label: "Settings", icon: <SettingsIcon />, active: isSettings },
   ];
 
