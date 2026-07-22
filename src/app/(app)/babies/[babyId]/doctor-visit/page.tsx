@@ -1,5 +1,5 @@
 "use client";
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR, { mutate } from "swr";
 import { useBaby } from "@/hooks/useBaby";
@@ -10,14 +10,19 @@ import { Label } from "@/components/ui/Label";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { VisitPrep } from "@/components/doctor-visit/VisitPrep";
+import { WeeklyStackedBarChart } from "@/components/charts/WeeklyStackedBarChart";
+import {
+  FEED_SERIES, DIAPER_SERIES, RANGE_OPTIONS, daysForRange, bucketByDay,
+  feedingExtra, feedTooltipExtraLines, FEED_EXTRA_COLUMNS, type ChartRange,
+} from "@/lib/charts";
+import { formatOz, formatMl, formatMinutes } from "@/lib/utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-interface FeedingLog { id: string; type: string; loggedAt: string; }
+interface FeedingLog { id: string; type: string; amount?: number | null; duration?: number | null; unit?: string | null; loggedAt: string; }
 interface DiaperLog { id: string; type: string; notes?: string | null; loggedAt: string; }
 interface Doc { id: string; path: string; originalName: string; mimeType: string; }
 interface Appointment { id: string; date: string; notes?: string | null; }
-interface FlaggedItem { id: string; }
 
 function DocIcon() {
   return (
@@ -95,8 +100,6 @@ export default function DoctorVisitPage({ params }: { params: Promise<{ babyId: 
   const { data: diapers } = useSWR(`/api/babies/${babyId}/diapers`, fetcher);
   const { data: docs } = useSWR(`/api/babies/${babyId}/documents`, fetcher);
   const { data: appointments } = useSWR<Appointment[]>(`/api/babies/${babyId}/appointments`, fetcher);
-  const { data: flaggedPhotosAll } = useSWR<FlaggedItem[]>(`/api/babies/${babyId}/photos?flagged=true`, fetcher);
-  const { data: flaggedDiapersAll } = useSWR<FlaggedItem[]>(`/api/babies/${babyId}/diapers?flagged=true`, fetcher);
   const { toast } = useToast();
 
   const [showApptModal, setShowApptModal] = useState(false);
@@ -105,13 +108,30 @@ export default function DoctorVisitPage({ params }: { params: Promise<{ babyId: 
   const [apptNotes, setApptNotes] = useState("");
   const [apptLoading, setApptLoading] = useState(false);
   const [showApptHistory, setShowApptHistory] = useState(false);
+  const [chartRange, setChartRange] = useState<ChartRange>("7d");
+
+  const chartDays = useMemo(() => daysForRange(chartRange), [chartRange]);
+  const feedChartData = useMemo(() => bucketByDay(feedings ?? [], chartDays, feedingExtra), [feedings, chartDays]);
+  const diaperChartData = useMemo(() => bucketByDay(diapers ?? [], chartDays), [diapers, chartDays]);
+  const chartRangeOption = RANGE_OPTIONS.find((o) => o.value === chartRange) ?? RANGE_OPTIONS[2];
+  const chartRangeLabel = chartRangeOption.label;
+  const chartRangePhrase = chartRangeOption.phrase;
 
   if (babyLoading) return <div className="flex justify-center py-16"><Spinner /></div>;
 
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
   const feeds24h = feedings?.filter((f: FeedingLog) => new Date(f.loggedAt).getTime() > cutoff).length ?? 0;
   const diapers24h = diapers?.filter((d: DiaperLog) => new Date(d.loggedAt).getTime() > cutoff).length ?? 0;
-  const flaggedItems = (flaggedPhotosAll?.length ?? 0) + (flaggedDiapersAll?.length ?? 0);
+
+  const numDays = chartDays.length;
+  const totalDiapersInRange = diaperChartData.reduce((sum, d) => sum + Object.values(d.counts).reduce((a, b) => a + b, 0), 0);
+  const totalBottleMl = feedChartData.reduce((sum, d) => sum + (d.extra?.bottleMl ?? 0), 0);
+  const totalBreastLeftMin = feedChartData.reduce((sum, d) => sum + (d.extra?.breastLeftMin ?? 0), 0);
+  const totalBreastRightMin = feedChartData.reduce((sum, d) => sum + (d.extra?.breastRightMin ?? 0), 0);
+  const avgDiapersPerDay = totalDiapersInRange / numDays;
+  const avgBottleMlPerDay = totalBottleMl / numDays;
+  const avgBreastLeftMinPerDay = totalBreastLeftMin / numDays;
+  const avgBreastRightMinPerDay = totalBreastRightMin / numDays;
 
   const today = startOfToday();
   const upcoming = (appointments ?? []).filter((a) => new Date(a.date) >= today).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -182,7 +202,7 @@ export default function DoctorVisitPage({ params }: { params: Promise<{ babyId: 
       </p>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-2 gap-3 mb-6">
         <div className="bg-white rounded-2xl border border-pink-100/60 p-4 text-center">
           <p className="text-2xl font-bold text-foreground">{feeds24h}</p>
           <p className="text-xs text-foreground/40 mt-1">Feeds / 24h</p>
@@ -191,10 +211,64 @@ export default function DoctorVisitPage({ params }: { params: Promise<{ babyId: 
           <p className="text-2xl font-bold text-foreground">{diapers24h}</p>
           <p className="text-xs text-foreground/40 mt-1">Diapers / 24h</p>
         </div>
+      </div>
+
+      {/* Daily averages */}
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold text-foreground/40 tracking-widest uppercase">Daily averages · {chartRangeLabel}</p>
+        <select
+          value={chartRange}
+          onChange={(e) => setChartRange(e.target.value as ChartRange)}
+          className="flex-shrink-0 rounded-2xl border border-pink-100 bg-white pl-3 pr-7 py-1.5 text-xs text-foreground focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+          aria-label="Averages date range"
+        >
+          {RANGE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      </div>
+      <div className="grid grid-cols-2 gap-3 mb-6">
         <div className="bg-white rounded-2xl border border-pink-100/60 p-4 text-center">
-          <p className="text-2xl font-bold text-foreground">{flaggedItems}</p>
-          <p className="text-xs text-foreground/40 mt-1">Flagged items</p>
+          <p className="text-xl font-bold text-foreground">{avgDiapersPerDay > 0 ? avgDiapersPerDay.toFixed(1) : "–"}</p>
+          <p className="text-xs text-foreground/40 mt-1">Diapers / day</p>
         </div>
+        <div className="bg-white rounded-2xl border border-pink-100/60 p-4 text-center">
+          <p className="text-xl font-bold text-foreground">{avgBottleMlPerDay > 0 ? formatOz(avgBottleMlPerDay) : "–"}</p>
+          <p className="text-xs text-foreground/40 mt-1">Bottle / day{avgBottleMlPerDay > 0 ? ` (${formatMl(avgBottleMlPerDay)})` : ""}</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-pink-100/60 p-4 text-center">
+          <p className="text-xl font-bold text-foreground">{avgBreastLeftMinPerDay > 0 ? formatMinutes(avgBreastLeftMinPerDay) : "–"}</p>
+          <p className="text-xs text-foreground/40 mt-1">Breast (L) / day</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-pink-100/60 p-4 text-center">
+          <p className="text-xl font-bold text-foreground">{avgBreastRightMinPerDay > 0 ? formatMinutes(avgBreastRightMinPerDay) : "–"}</p>
+          <p className="text-xs text-foreground/40 mt-1">Breast (R) / day</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-pink-100/60 p-4 text-center col-span-2">
+          <p className="text-xl font-bold text-foreground">{avgBreastLeftMinPerDay + avgBreastRightMinPerDay > 0 ? formatMinutes(avgBreastLeftMinPerDay + avgBreastRightMinPerDay) : "–"}</p>
+          <p className="text-xs text-foreground/40 mt-1">Breast total (L+R) / day</p>
+        </div>
+      </div>
+
+      {/* Trends */}
+      <div className="space-y-3 mb-6">
+        <h2 className="text-lg font-bold text-foreground font-serif">Trends</h2>
+        <WeeklyStackedBarChart
+          title="Feedings"
+          series={FEED_SERIES}
+          data={feedChartData}
+          rangeLabel={chartRangeLabel}
+          emptyLabel={`No feedings logged ${chartRangePhrase}`}
+          tooltipExtraLines={feedTooltipExtraLines}
+          extraColumns={FEED_EXTRA_COLUMNS}
+        />
+        <WeeklyStackedBarChart
+          title="Diapers"
+          series={DIAPER_SERIES}
+          data={diaperChartData}
+          rangeLabel={chartRangeLabel}
+          emptyLabel={`No diaper changes logged ${chartRangePhrase}`}
+        />
       </div>
 
       {/* Appointments */}
