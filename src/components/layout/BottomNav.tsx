@@ -46,9 +46,17 @@ function HealthIcon() {
 
 function SettingsIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.6">
-      <circle cx="11" cy="11" r="3" />
-      <path d="M11 2v2M11 18v2M2 11h2M18 11h2M4.22 4.22l1.41 1.41M16.37 16.37l1.41 1.41M4.22 17.78l1.41-1.41M16.37 5.63l1.41-1.41" strokeLinecap="round" />
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="6" />
+      <circle cx="11" cy="11" r="2.2" />
+      <rect x="10" y="2.6" width="2" height="2.6" rx="0.4" />
+      <rect x="10" y="2.6" width="2" height="2.6" rx="0.4" transform="rotate(45 11 11)" />
+      <rect x="10" y="2.6" width="2" height="2.6" rx="0.4" transform="rotate(90 11 11)" />
+      <rect x="10" y="2.6" width="2" height="2.6" rx="0.4" transform="rotate(135 11 11)" />
+      <rect x="10" y="2.6" width="2" height="2.6" rx="0.4" transform="rotate(180 11 11)" />
+      <rect x="10" y="2.6" width="2" height="2.6" rx="0.4" transform="rotate(225 11 11)" />
+      <rect x="10" y="2.6" width="2" height="2.6" rx="0.4" transform="rotate(270 11 11)" />
+      <rect x="10" y="2.6" width="2" height="2.6" rx="0.4" transform="rotate(315 11 11)" />
     </svg>
   );
 }

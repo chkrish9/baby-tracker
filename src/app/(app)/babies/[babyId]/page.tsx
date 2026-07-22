@@ -294,8 +294,9 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
         <div className="flex items-center gap-3 bg-pink-500 rounded-2xl p-4 text-white cursor-pointer hover:bg-pink-600 transition-colors">
           <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/20 flex-shrink-0">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 2v5M4 9H2M16 9h-2M5.6 5.6l-1.4-1.4M13.8 13.8l-1.4-1.4" />
-              <circle cx="9" cy="9" r="3" />
+              <path d="M5 2v4a4 4 0 008 0V2" />
+              <path d="M9 10v2.5" />
+              <circle cx="9" cy="14.5" r="2" />
             </svg>
           </div>
           <div className="flex-1">
