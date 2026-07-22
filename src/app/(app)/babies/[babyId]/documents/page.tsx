@@ -1,5 +1,5 @@
 "use client";
-import { use, useRef, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import useSWR, { mutate } from "swr";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
@@ -47,11 +47,90 @@ function CameraIcon() {
   );
 }
 
+function CloseIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <path d="M5 5l10 10M15 5L5 15" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ direction }: { direction: "left" | "right" }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d={direction === "left" ? "M12.5 4l-6 6 6 6" : "M7.5 4l6 6-6 6"} />
+    </svg>
+  );
+}
+
+function PhotoLightbox({ photos, index, onClose, onNavigate }: { photos: Photo[]; index: number; onClose: () => void; onNavigate: (i: number) => void }) {
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowLeft") onNavigate((index - 1 + photos.length) % photos.length);
+      else if (e.key === "ArrowRight") onNavigate((index + 1) % photos.length);
+    }
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [index, photos.length, onClose, onNavigate]);
+
+  const photo = photos[index];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center animate-fade-in"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center transition-colors"
+        aria-label="Close"
+      >
+        <CloseIcon />
+      </button>
+
+      {photos.length > 1 && (
+        <button
+          onClick={() => onNavigate((index - 1 + photos.length) % photos.length)}
+          className="absolute left-2 sm:left-4 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center transition-colors"
+          aria-label="Previous photo"
+        >
+          <ChevronIcon direction="left" />
+        </button>
+      )}
+
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`/api/files/${photo.path}`}
+        alt={photo.filename}
+        className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg"
+      />
+
+      {photos.length > 1 && (
+        <button
+          onClick={() => onNavigate((index + 1) % photos.length)}
+          className="absolute right-2 sm:right-4 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center transition-colors"
+          aria-label="Next photo"
+        >
+          <ChevronIcon direction="right" />
+        </button>
+      )}
+
+      {photos.length > 1 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-xs">
+          {index + 1} / {photos.length}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DocumentsPage({ params }: { params: Promise<{ babyId: string }> }) {
   const { babyId } = use(params);
   const { toast } = useToast();
   const [tab, setTab] = useState<"photos" | "documents">("photos");
   const [flaggingPhoto, setFlaggingPhoto] = useState<Photo | null>(null);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
 
@@ -155,10 +234,18 @@ export default function DocumentsPage({ params }: { params: Promise<{ babyId: st
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
-                {photos.map((photo: Photo) => (
-                  <div key={photo.id} className="relative group rounded-2xl overflow-hidden bg-pink-50 border border-pink-100/60 aspect-square">
+                {photos.map((photo: Photo, i: number) => (
+                  <div
+                    key={photo.id}
+                    className="relative group rounded-2xl overflow-hidden bg-pink-50 border border-pink-100/60 aspect-square cursor-pointer"
+                    onClick={() => setViewerIndex(i)}
+                  >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={`/api/files/${photo.path}`} alt={photo.filename} className="object-cover w-full h-full" />
+                    <img
+                      src={`/api/files/${photo.path}`}
+                      alt={photo.filename}
+                      className="object-cover w-full h-full"
+                    />
                     {photo.appointmentIds.length > 0 && (
                       <div className="absolute top-2 left-2 bg-pink-500 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-sm">
                         <FlagIcon filled />
@@ -167,13 +254,13 @@ export default function DocumentsPage({ params }: { params: Promise<{ babyId: st
                     <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-end justify-between p-2">
                       <div className="flex gap-1.5">
                         <button
-                          onClick={() => setFlaggingPhoto(photo)}
+                          onClick={(e) => { e.stopPropagation(); setFlaggingPhoto(photo); }}
                           className={`rounded-full w-8 h-8 flex items-center justify-center ${photo.appointmentIds.length > 0 ? "bg-pink-500 text-white" : "bg-white/80 text-foreground/60"}`}
                           aria-label={photo.appointmentIds.length > 0 ? "Edit flagged appointments" : "Flag photo for the doctor"}
                         >
                           <FlagIcon filled={photo.appointmentIds.length > 0} />
                         </button>
-                        <button onClick={() => handleDeletePhoto(photo.id)} className="bg-white/80 text-red-500 rounded-full w-8 h-8 flex items-center justify-center">
+                        <button onClick={(e) => { e.stopPropagation(); handleDeletePhoto(photo.id); }} className="bg-white/80 text-red-500 rounded-full w-8 h-8 flex items-center justify-center">
                           <TrashIcon />
                         </button>
                       </div>
@@ -228,6 +315,15 @@ export default function DocumentsPage({ params }: { params: Promise<{ babyId: st
         currentAppointmentIds={flaggingPhoto?.appointmentIds ?? []}
         onSave={(appointmentIds) => handleSavePhotoFlags(flaggingPhoto!.id, appointmentIds)}
       />
+
+      {viewerIndex !== null && photos?.length > 0 && (
+        <PhotoLightbox
+          photos={photos}
+          index={viewerIndex}
+          onClose={() => setViewerIndex(null)}
+          onNavigate={setViewerIndex}
+        />
+      )}
     </div>
   );
 }

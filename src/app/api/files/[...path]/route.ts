@@ -32,5 +32,6 @@ export async function GET(_req: Request, { params }: Params) {
   }
 
   const contentType = mime.lookup(abs) || "application/octet-stream";
-  return new NextResponse(data.buffer as ArrayBuffer, { headers: { "Content-Type": contentType, "Cache-Control": "private, max-age=3600" } });
+  const body = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
+  return new NextResponse(body, { headers: { "Content-Type": contentType, "Cache-Control": "private, max-age=3600" } });
 }
