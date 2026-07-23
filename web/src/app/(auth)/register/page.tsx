@@ -1,15 +1,19 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { register, login } from "@/lib/api-client";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl");
+  const invitedEmail = searchParams.get("email");
+
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(invitedEmail ?? "");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
@@ -28,9 +32,50 @@ export default function RegisterPage() {
     const loginResult = await login(email, password, rememberMe);
     setLoading(false);
     if ("error" in loginResult) { router.push("/login"); return; }
+    if (callbackUrl) { router.push(callbackUrl); return; }
     router.push("/dashboard");
   }
 
+  return (
+    <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-sm border border-pink-100/60 p-6 space-y-4">
+      {error && <p className="text-sm text-red-600 bg-red-50 rounded-2xl px-4 py-2.5">{error}</p>}
+      <div className="space-y-1">
+        <label className="text-sm font-medium text-foreground">Name (optional)</label>
+        <Input type="text" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="Your name" />
+      </div>
+      <div className="space-y-1">
+        <label className="text-sm font-medium text-foreground">Email</label>
+        <Input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          autoComplete="email"
+          placeholder="you@example.com"
+          disabled={!!invitedEmail}
+          className={invitedEmail ? "opacity-60 cursor-not-allowed" : ""}
+        />
+        {invitedEmail && <p className="text-xs text-foreground/40">Locked to your invited email</p>}
+      </div>
+      <div className="space-y-1">
+        <label className="text-sm font-medium text-foreground">Password</label>
+        <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" placeholder="Min 8 characters" minLength={8} />
+      </div>
+      <label className="flex items-center gap-2 text-sm text-foreground/70 select-none cursor-pointer">
+        <input
+          type="checkbox"
+          checked={rememberMe}
+          onChange={(e) => setRememberMe(e.target.checked)}
+          className="w-4 h-4 rounded accent-pink-500"
+        />
+        Remember me
+      </label>
+      <Button type="submit" loading={loading} className="w-full !py-3 !text-base">Create account</Button>
+    </form>
+  );
+}
+
+export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <div className="w-full max-w-sm">
@@ -41,31 +86,9 @@ export default function RegisterPage() {
           <p className="text-sm text-foreground/50 mt-1.5">Create your account</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-sm border border-pink-100/60 p-6 space-y-4">
-          {error && <p className="text-sm text-red-600 bg-red-50 rounded-2xl px-4 py-2.5">{error}</p>}
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-foreground">Name (optional)</label>
-            <Input type="text" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="Your name" />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-foreground">Email</label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="you@example.com" />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-foreground">Password</label>
-            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" placeholder="Min 8 characters" minLength={8} />
-          </div>
-          <label className="flex items-center gap-2 text-sm text-foreground/70 select-none cursor-pointer">
-            <input
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4 rounded accent-pink-500"
-            />
-            Remember me
-          </label>
-          <Button type="submit" loading={loading} className="w-full !py-3 !text-base">Create account</Button>
-        </form>
+        <Suspense fallback={<div className="bg-white rounded-3xl shadow-sm border border-pink-100/60 p-6 h-64" />}>
+          <RegisterForm />
+        </Suspense>
 
         <p className="text-center text-sm text-foreground/50 mt-5">
           Already have an account?{" "}

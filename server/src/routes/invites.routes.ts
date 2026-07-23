@@ -5,7 +5,9 @@ import { requireAuth } from "../middleware/auth";
 import { requireCsrf } from "../middleware/csrf";
 import { inviteCreateSchema } from "../lib/validation";
 import { addDays } from "../lib/utils";
-import { ConflictError, ForbiddenError, NotFoundError } from "../lib/errors";
+import { env } from "../config/env";
+import { sendInviteEmail } from "../lib/mailer";
+import { AppError, ConflictError, ForbiddenError, NotFoundError } from "../lib/errors";
 
 const router = Router();
 
@@ -34,6 +36,12 @@ router.post(
       throw new ConflictError("This person already has access to the selected baby/babies");
     }
 
+    const [inviter, invitedUser, targetBabyRows] = await Promise.all([
+      db.user.findUnique({ where: { id: req.user!.id }, select: { name: true, email: true } }),
+      db.user.findUnique({ where: { email }, select: { id: true } }),
+      db.baby.findMany({ where: { id: { in: targetBabies.map((b) => b.babyId) } }, select: { id: true, name: true } }),
+    ]);
+
     const invite = await db.invite.create({
       data: {
         invitedByUserId: req.user!.id,
@@ -42,6 +50,19 @@ router.post(
         babies: { create: targetBabies.map((b) => ({ babyId: b.babyId, sections: b.sections })) },
       },
     });
+
+    try {
+      await sendInviteEmail({
+        to: email,
+        inviterName: inviter!.name ?? inviter!.email,
+        babyNames: targetBabyRows.map((b) => b.name),
+        inviteUrl: `${env.APP_URL}/invite/${invite.token}`,
+        hasAccount: !!invitedUser,
+      });
+    } catch {
+      await db.invite.delete({ where: { id: invite.id } });
+      throw new AppError(502, "Failed to send the invite email. Please try again.");
+    }
 
     res.status(201).json({ token: invite.token, email: invite.email });
   })
@@ -62,10 +83,12 @@ router.get(
     if (invite.status !== "PENDING" || invite.expiresAt < new Date()) {
       return res.status(410).json({ error: "Invite expired or already used" });
     }
+    const invitedUser = await db.user.findUnique({ where: { email: invite.email }, select: { id: true } });
     res.json({
       babies: invite.babies.map((b) => ({ ...b.baby, sections: b.sections })),
       invitedBy: invite.invitedBy,
       email: invite.email,
+      hasAccount: !!invitedUser,
     });
   })
 );
@@ -81,6 +104,11 @@ router.post(
     if (!invite) throw new NotFoundError("Invite not found");
     if (invite.status !== "PENDING" || invite.expiresAt < new Date()) {
       return res.status(410).json({ error: "Invite expired or already used" });
+    }
+
+    const acceptingUser = await db.user.findUnique({ where: { id: req.user!.id }, select: { email: true } });
+    if (acceptingUser!.email.toLowerCase() !== invite.email.toLowerCase()) {
+      throw new ForbiddenError("This invite was sent to a different email address");
     }
 
     const existingLinks = await db.babyParent.findMany({

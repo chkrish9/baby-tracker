@@ -10,8 +10,9 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl");
+  const prefillEmail = searchParams.get("email");
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(prefillEmail ?? "");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");

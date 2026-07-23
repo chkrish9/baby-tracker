@@ -8,7 +8,7 @@ import { apiFetch } from "@/lib/api-client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { SECTIONS, type Section } from "@/lib/sections";
 
-interface InviteInfo { babies: { id: string; name: string; sections: Section[] }[]; invitedBy: { name?: string; email: string }; email: string; }
+interface InviteInfo { babies: { id: string; name: string; sections: Section[] }[]; invitedBy: { name?: string; email: string }; email: string; hasAccount: boolean; }
 
 function sectionLabels(sections: Section[]) {
   return SECTIONS.filter((s) => sections.includes(s.key)).map((s) => s.label).join(", ");
@@ -37,8 +37,16 @@ export default function InviteAcceptPage({ params }: { params: Promise<{ token: 
       .finally(() => setFetching(false));
   }, [token]);
 
+  function handleUnauthenticated() {
+    if (!info) return;
+    const callbackUrl = encodeURIComponent(`/invite/${token}`);
+    const email = encodeURIComponent(info.email);
+    const dest = info.hasAccount ? "login" : "register";
+    router.push(`/${dest}?callbackUrl=${callbackUrl}&email=${email}`);
+  }
+
   async function handleAccept() {
-    if (!session) { router.push(`/login?callbackUrl=/invite/${token}`); return; }
+    if (!session) { handleUnauthenticated(); return; }
     setLoading(true);
     const res = await apiFetch(`/api/invites/${token}`, { method: "POST" });
     setLoading(false);
@@ -75,10 +83,14 @@ export default function InviteAcceptPage({ params }: { params: Promise<{ token: 
               ))}
             </div>
             {!session && (
-              <p className="text-xs text-pink-400">You&apos;ll need to sign in or create an account first.</p>
+              <p className="text-xs text-pink-400">
+                {info.hasAccount
+                  ? "You'll need to sign in first, then you'll land back here."
+                  : "You'll need to create an account first, then you'll land back here."}
+              </p>
             )}
             <Button onClick={handleAccept} loading={loading} className="w-full">
-              {session ? "Accept invite" : "Sign in to accept"}
+              {session ? "Accept invite" : info.hasAccount ? "Sign in to accept" : "Sign up to accept"}
             </Button>
           </div>
         ) : null}

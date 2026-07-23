@@ -68,10 +68,13 @@
 - **Questions for the doctor** — jot down a question any time; check it off once asked. New questions and newly-flagged photos/diaper notes attach automatically to the next upcoming appointment
 - Each visit's page shows its own questions, flagged photos, and flagged diaper notes in one place
 
-### Parent Invites
-- Invite a co-parent by email — generates a one-time shareable link, selectable per baby
-- Invitee accepts after signing in or registering
-- Baby owner can remove co-parents at any time; co-parents can remove themselves ("Leave")
+### Sharing & Permissions
+- Invite someone to a baby by email — the app sends the invite directly over SMTP, no link to copy/paste
+- **Per-page permissions, per baby** — choose exactly which pages an invitee can see: Logs (feeding & diapers), Photos, Health, and/or Doctor Visits. Inviting to multiple babies at once lets each baby have a different set of pages (e.g. a caretaker gets Logs-only on one baby, full access on another)
+- If the invited address doesn't have an account yet, the invite routes them through sign-up first (email pre-filled and locked to the invite) before landing back on the accept screen; existing users go straight to sign-in
+- Acceptance is locked to the invited email address — a different logged-in account can't accept someone else's invite
+- A collaborator's bottom nav, dashboard, and page access are all scoped to their granted pages, enforced both in the UI and on every API request; the owner can edit an existing collaborator's page access at any time from Settings
+- Baby owner can remove collaborators at any time; collaborators can remove themselves ("Leave")
 
 ### Settings
 - **Profile photo** — upload your avatar, shown in the header on all pages
@@ -127,6 +130,7 @@ See [Security](#security) for the full auth/CSRF/rate-limiting model.
 | Validation | Zod (request bodies **and** env config) |
 | Security | `helmet`, `cors`, `express-rate-limit`, double-submit CSRF, `bcryptjs` |
 | Uploads | `multer` (memory storage) → local filesystem |
+| Email | `nodemailer` over SMTP — invite emails |
 
 ### `web/` — UI
 
@@ -163,6 +167,12 @@ ACCESS_TOKEN_SECRET="your-random-secret-here"
 REFRESH_TOKEN_SECRET="a-different-random-secret-here"
 CORS_ORIGIN=http://localhost:3002
 NEXT_PUBLIC_API_URL=http://localhost:4000
+APP_URL=http://localhost:3002
+SMTP_HOST=smtp.mailtrap.io
+SMTP_PORT=587
+SMTP_USER=your-smtp-username
+SMTP_PASS=your-smtp-password
+EMAIL_FROM=Little Notes <noreply@yourdomain.com>
 ```
 
 Generate secure values (run twice, once per secret):
@@ -251,6 +261,12 @@ DATABASE_URL="postgresql://babytracker:babytracker@localhost:5434/babytracker"
 ACCESS_TOKEN_SECRET="your-random-secret-here"
 REFRESH_TOKEN_SECRET="a-different-random-secret-here"
 CORS_ORIGIN=http://localhost:3002
+APP_URL=http://localhost:3002
+SMTP_HOST=smtp.mailtrap.io
+SMTP_PORT=587
+SMTP_USER=your-smtp-username
+SMTP_PASS=your-smtp-password
+EMAIL_FROM=Little Notes <noreply@yourdomain.com>
 ```
 
 `web/.env.local`:
@@ -326,6 +342,7 @@ baby-tracker/
 │           ├── cookies.ts        # Cookie set/clear helpers
 │           ├── upload.ts         # saveFile / deleteFile helpers
 │           ├── validation.ts     # Zod schemas for all API inputs
+│           ├── mailer.ts         # Sends invite emails via SMTP (nodemailer)
 │           └── appointments.ts   # findNextAppointmentId — auto-links flags/questions
 │
 └── web/                          # Next.js UI (port 3002)
@@ -348,23 +365,26 @@ baby-tracker/
         │   │   ├── babies/
         │   │   │   ├── new/       # Add baby form
         │   │   │   └── [babyId]/  # Profile (+ trend charts), feeding, diapers,
-        │   │   │       │          # health, photos, invite
+        │   │   │       │          # health, photos, doctor-visit
         │   │   │       └── doctor-visit/
         │   │   │           └── [appointmentId]/  # Per-visit questions, flagged items
-        │   │   └── settings/      # Theme, profile photo, name, password, invites
-        │   └── invite/[token]/    # Public invite landing page
+        │   │   └── settings/      # Theme, profile photo, name, password, invites & permissions
+        │   └── invite/[token]/    # Public invite landing page — routes to sign-in/sign-up as needed
         ├── components/
         │   ├── ThemeProvider.tsx  # CSS variable theme switcher + server sync
         │   ├── ui/                 # Button, Input, Card, Avatar, Badge, Modal, Toast, Spinner
         │   ├── layout/             # Navbar (with profile dropdown), BottomNav, PageHeader
         │   ├── baby/               # BabyCard
         │   ├── charts/              # WeeklyStackedBarChart, GrowthLineChart (D3-backed)
-        │   └── doctor-visit/        # VisitPrep, FlagAppointmentsModal
-        ├── hooks/                   # useBaby, useFeeding, useDiapers, useHealth, useCurrentUser
+        │   ├── doctor-visit/        # VisitPrep, FlagAppointmentsModal
+        │   └── invite/              # SectionPermissionsPicker — per-baby page-permission checkboxes
+        ├── hooks/                   # useBaby, useFeeding, useDiapers, useHealth, useCurrentUser,
+        │                            # usePermissions (granted page sections for a baby)
         └── lib/
             ├── api-client.ts        # Cross-origin fetch wrapper — credentials, CSRF, silent refresh
             ├── utils.ts             # cn(), babyDisplayName(), formatBytes(), etc.
-            └── charts.ts            # Chart data-shaping helpers
+            ├── charts.ts            # Chart data-shaping helpers
+            └── sections.ts          # Shared page-permission definitions (Logs/Photos/Health/Doctor Visits)
 ```
 
 ---
@@ -399,6 +419,12 @@ In Docker, `server/uploads/` is mounted as a named volume (`uploads_data`) so fi
 | `ACCESS_TOKEN_SECRET` | Yes | Signs short-lived access tokens (min 32 chars) |
 | `REFRESH_TOKEN_SECRET` | Yes | Signs long-lived refresh tokens — **must differ** from the access secret (min 32 chars) |
 | `CORS_ORIGIN` | Yes | Exact origin allowed to call the API with credentials (e.g. `http://localhost:3002`) — never `*` |
+| `APP_URL` | Yes | Base URL of the web frontend, used to build the invite link embedded in invite emails (e.g. `http://localhost:3002`) |
+| `SMTP_HOST` | Yes | SMTP server hostname used to send invite emails |
+| `SMTP_PORT` | No | Defaults to `587` |
+| `SMTP_USER` | Yes | SMTP auth username |
+| `SMTP_PASS` | Yes | SMTP auth password |
+| `EMAIL_FROM` | Yes | From address on invite emails, e.g. `"Little Notes <noreply@yourdomain.com>"` |
 | `PORT` | No | Defaults to `4000` |
 | `NODE_ENV` | No | Defaults to `development`; gates the `Secure` cookie flag |
 
@@ -410,7 +436,9 @@ In Docker, `server/uploads/` is mounted as a named volume (`uploads_data`) so fi
 
 ### Root `.env` (Docker Compose only)
 
-Same four secrets as `server/.env` plus `NEXT_PUBLIC_API_URL`, read by `docker-compose.yml` for variable substitution into the containers.
+Same secrets as `server/.env` (including `APP_URL`/`SMTP_*`/`EMAIL_FROM`) plus `NEXT_PUBLIC_API_URL`, read by `docker-compose.yml` for variable substitution into the containers.
+
+> For local SMTP testing without a real mail provider, a free [Mailtrap](https://mailtrap.io) sandbox or an [Ethereal](https://ethereal.email) throwaway test account both work as drop-in `SMTP_*` values.
 
 `.env.example` files are committed alongside each real `.env` as a template.
 
@@ -428,6 +456,8 @@ The API follows a standard production hardening checklist:
 | CORS | Explicit origin allow-list (`CORS_ORIGIN`), `credentials: true`, never a wildcard |
 | Password storage | `bcryptjs` hashing |
 | Authorization | Every baby-scoped route re-checks the requester is a linked parent (`requireBabyAccess`); owner-only actions (delete baby, remove another parent) additionally check `role === "OWNER"` |
+| Section-level access | Each baby-scoped resource route also checks the requester's granted page permissions (`requireSectionAccess`) — a collaborator invited with, say, Logs-only gets a 403 on health/photo/appointment endpoints, not just a hidden nav item |
+| Invite integrity | Invite emails are locked to the exact invited address — accepting requires a session whose email matches the invite, so a forwarded or leaked invite link can't be accepted by someone else |
 | Rate limiting | IP-level limiter on all routes, a stricter limiter on `/auth/login` + `/auth/register`, and a separate per-account lockout after repeated failed logins |
 | File access | Per-file ownership check on every download, not just "any authenticated user" |
 | HTTP hardening | `helmet` security headers, `X-Powered-By` disabled, JSON body size capped at 1 MB, upload size/type limits enforced server-side |
@@ -443,4 +473,5 @@ The API follows a standard production hardening checklist:
 - **HTTPS is required** — `Secure` cookies only get set (and only get sent back) over HTTPS once `NODE_ENV=production`; run both services behind a reverse proxy (Nginx, Caddy, Traefik) with TLS
 - **Database** — swap the Docker PostgreSQL for a managed service (Supabase, Railway, Neon) by updating `DATABASE_URL`
 - **File storage** — for multi-instance deployments replace `server/uploads/` with S3-compatible object storage
+- **Email delivery** — swap the dev/sandbox `SMTP_*` values for a real transactional provider's SMTP credentials (e.g. Postmark, SES, SendGrid, Resend) so invite emails reliably reach inboxes instead of spam
 - **Build** — each service has its own multi-stage Docker image; run `docker compose up --build -d` to deploy updates to both, or `docker compose build server` / `docker compose build web` to update just one
