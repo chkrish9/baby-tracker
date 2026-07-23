@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useBabies } from "@/hooks/useBaby";
+import { useBabyPermissions } from "@/hooks/usePermissions";
 
 function DashboardIcon() {
   return (
@@ -77,6 +78,7 @@ export function BottomNav() {
   const [activeBabyId, setActiveBabyId] = useState<string | null>(null);
   const { data: babies } = useBabies();
   const hasBabies = babies === undefined ? true : babies.length > 0;
+  const { hasSection } = useBabyPermissions(activeBabyId ?? "");
 
   useEffect(() => {
     const match = pathname.match(/^\/babies\/([^/]+)/);
@@ -103,9 +105,9 @@ export function BottomNav() {
     { href: dashHref, label: hasBabies ? "Dashboard" : "Home", icon: hasBabies ? <DashboardIcon /> : <HomeIcon />, active: isDashboard },
     ...(hasBabies
       ? [
-          { href: logsHref, label: "Logs", icon: <LogsIcon />, active: isLogs },
-          { href: photosHref, label: "Photos", icon: <PhotosIcon />, active: isPhotos },
-          { href: healthHref, label: "Health", icon: <HealthIcon />, active: isHealth },
+          ...(hasSection("LOGS") ? [{ href: logsHref, label: "Logs", icon: <LogsIcon />, active: isLogs }] : []),
+          ...(hasSection("PHOTOS") ? [{ href: photosHref, label: "Photos", icon: <PhotosIcon />, active: isPhotos }] : []),
+          ...(hasSection("HEALTH") ? [{ href: healthHref, label: "Health", icon: <HealthIcon />, active: isHealth }] : []),
         ]
       : []),
     { href: "/settings", label: "Settings", icon: <SettingsIcon />, active: isSettings },

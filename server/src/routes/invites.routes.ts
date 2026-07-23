@@ -14,8 +14,9 @@ router.post(
   requireAuth,
   requireCsrf,
   asyncHandler(async (req, res) => {
-    const { email, babyIds } = inviteCreateSchema.parse(req.body);
-    const uniqueBabyIds = Array.from(new Set(babyIds));
+    const { email, babies } = inviteCreateSchema.parse(req.body);
+    const uniqueBabies = Array.from(new Map(babies.map((b) => [b.babyId, b])).values());
+    const uniqueBabyIds = uniqueBabies.map((b) => b.babyId);
 
     const myLinks = await db.babyParent.findMany({
       where: { userId: req.user!.id, babyId: { in: uniqueBabyIds } },
@@ -27,9 +28,9 @@ router.post(
       where: { babyId: { in: uniqueBabyIds }, user: { email } },
     });
     const alreadyParentBabyIds = new Set(alreadyParentOf.map((l) => l.babyId));
-    const targetBabyIds = uniqueBabyIds.filter((id) => !alreadyParentBabyIds.has(id));
+    const targetBabies = uniqueBabies.filter((b) => !alreadyParentBabyIds.has(b.babyId));
 
-    if (targetBabyIds.length === 0) {
+    if (targetBabies.length === 0) {
       throw new ConflictError("This person already has access to the selected baby/babies");
     }
 
@@ -38,7 +39,7 @@ router.post(
         invitedByUserId: req.user!.id,
         email,
         expiresAt: addDays(new Date(), 7),
-        babies: { create: targetBabyIds.map((babyId) => ({ babyId })) },
+        babies: { create: targetBabies.map((b) => ({ babyId: b.babyId, sections: b.sections })) },
       },
     });
 
@@ -62,7 +63,7 @@ router.get(
       return res.status(410).json({ error: "Invite expired or already used" });
     }
     res.json({
-      babies: invite.babies.map((b) => b.baby),
+      babies: invite.babies.map((b) => ({ ...b.baby, sections: b.sections })),
       invitedBy: invite.invitedBy,
       email: invite.email,
     });
@@ -89,7 +90,16 @@ router.post(
     const newBabyIds = invite.babies.map((b) => b.babyId).filter((id) => !existingBabyIds.has(id));
 
     await db.$transaction([
-      ...newBabyIds.map((babyId) => db.babyParent.create({ data: { userId: req.user!.id, babyId, role: "PARENT" } })),
+      ...newBabyIds.map((babyId) =>
+        db.babyParent.create({
+          data: {
+            userId: req.user!.id,
+            babyId,
+            role: "PARENT",
+            sections: invite.babies.find((b) => b.babyId === babyId)!.sections,
+          },
+        })
+      ),
       db.invite.update({ where: { token }, data: { status: "ACCEPTED" } }),
     ]);
 

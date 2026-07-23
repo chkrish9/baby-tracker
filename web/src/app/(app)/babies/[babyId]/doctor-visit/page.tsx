@@ -1,8 +1,10 @@
 "use client";
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import useSWR, { mutate } from "swr";
 import { useBaby } from "@/hooks/useBaby";
+import { useBabyPermissions } from "@/hooks/usePermissions";
 import { Spinner } from "@/components/ui/Spinner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -86,9 +88,11 @@ function toDateInputValue(iso: string) {
 
 export default function DoctorVisitPage({ params }: { params: Promise<{ babyId: string }> }) {
   const { babyId } = use(params);
+  const router = useRouter();
+  const { hasSection, isLoading: permLoading } = useBabyPermissions(babyId);
   const { data: baby, isLoading: babyLoading } = useBaby(babyId);
-  const { data: feedings } = useSWR(`/api/babies/${babyId}/feeding`, fetcher);
-  const { data: diapers } = useSWR(`/api/babies/${babyId}/diapers`, fetcher);
+  const { data: feedings } = useSWR(hasSection("LOGS") ? `/api/babies/${babyId}/feeding` : null, fetcher);
+  const { data: diapers } = useSWR(hasSection("LOGS") ? `/api/babies/${babyId}/diapers` : null, fetcher);
   const { data: appointments } = useSWR<Appointment[]>(`/api/babies/${babyId}/appointments`, fetcher);
   const { toast } = useToast();
 
@@ -107,7 +111,12 @@ export default function DoctorVisitPage({ params }: { params: Promise<{ babyId: 
   const chartRangeLabel = chartRangeOption.label;
   const chartRangePhrase = chartRangeOption.phrase;
 
+  useEffect(() => {
+    if (!permLoading && !hasSection("DOCTOR_VISITS")) router.replace(`/babies/${babyId}`);
+  }, [permLoading, hasSection, babyId, router]);
+
   if (babyLoading) return <div className="flex justify-center py-16"><Spinner /></div>;
+  if (!permLoading && !hasSection("DOCTOR_VISITS")) return null;
 
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
   const feeds24h = feedings?.filter((f: FeedingLog) => new Date(f.loggedAt).getTime() > cutoff).length ?? 0;

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/Label";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { VisitPrep } from "@/components/doctor-visit/VisitPrep";
+import { useBabyPermissions } from "@/hooks/usePermissions";
 import { apiFetch } from "@/lib/api-client";
 
 const fetcher = (url: string) => apiFetch(url).then((r) => { if (!r.ok) throw new Error("Not found"); return r.json(); });
@@ -62,8 +63,13 @@ function toDateInputValue(iso: string) {
 export default function AppointmentDetailPage({ params }: { params: Promise<{ babyId: string; appointmentId: string }> }) {
   const { babyId, appointmentId } = use(params);
   const router = useRouter();
+  const { hasSection, isLoading: permLoading } = useBabyPermissions(babyId);
   const { toast } = useToast();
   const { data: appt, error, isLoading } = useSWR<Appointment>(`/api/babies/${babyId}/appointments/${appointmentId}`, fetcher);
+
+  useEffect(() => {
+    if (!permLoading && !hasSection("DOCTOR_VISITS")) router.replace(`/babies/${babyId}`);
+  }, [permLoading, hasSection, babyId, router]);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [apptDate, setApptDate] = useState("");
@@ -78,6 +84,7 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ ba
   }, [appt]);
 
   if (isLoading) return <div className="flex justify-center py-16"><Spinner /></div>;
+  if (!permLoading && !hasSection("DOCTOR_VISITS")) return null;
 
   if (error || !appt) {
     return (

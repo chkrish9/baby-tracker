@@ -4,7 +4,7 @@ import { db } from "../lib/db";
 import { asyncHandler } from "../lib/asyncHandler";
 import { requireAuth } from "../middleware/auth";
 import { requireCsrf } from "../middleware/csrf";
-import { requireBabyAccess } from "../middleware/ownership";
+import { requireBabyAccess, requireSectionAccess } from "../middleware/ownership";
 import { photoUpdateSchema, appointmentLinksSchema } from "../lib/validation";
 import { saveFile, deleteFile } from "../lib/upload";
 import { uploadGalleryPhotos } from "../lib/multer";
@@ -15,6 +15,7 @@ const router = Router({ mergeParams: true });
 router.use(requireAuth);
 router.use(requireCsrf);
 router.use(requireBabyAccess);
+router.use(requireSectionAccess("PHOTOS"));
 
 router.get(
   "/",

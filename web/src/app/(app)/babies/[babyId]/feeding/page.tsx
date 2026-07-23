@@ -1,8 +1,10 @@
 "use client";
 import { use, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { mutate } from "swr";
 import { useFeedings } from "@/hooks/useFeeding";
 import { useDiapers } from "@/hooks/useDiapers";
+import { useBabyPermissions } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
@@ -144,9 +146,15 @@ interface DiaperLog { id: string; type: string; notes?: string | null; appointme
 
 export default function LogsPage({ params }: { params: Promise<{ babyId: string }> }) {
   const { babyId } = use(params);
+  const router = useRouter();
+  const { hasSection, isLoading: permLoading } = useBabyPermissions(babyId);
   const { toast } = useToast();
 
   const [tab, setTab] = useState<"feeding" | "diaper">("feeding");
+
+  useEffect(() => {
+    if (!permLoading && !hasSection("LOGS")) router.replace(`/babies/${babyId}`);
+  }, [permLoading, hasSection, babyId, router]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -288,6 +296,8 @@ export default function LogsPage({ params }: { params: Promise<{ babyId: string 
   const diaperGroups = groupByDay<DiaperLog>(diapers ?? []);
   const isLoading = tab === "feeding" ? feedLoading2 : diaperLoading2;
   const isEmpty = tab === "feeding" ? !feedings?.length : !diapers?.length;
+
+  if (!permLoading && !hasSection("LOGS")) return null;
 
   return (
     <div className="max-w-lg mx-auto">

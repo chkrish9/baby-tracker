@@ -92,9 +92,22 @@ export const healthRecordCreateSchema = z.object({
 
 export const healthRecordUpdateSchema = healthRecordCreateSchema.partial();
 
+export const PARENT_SECTIONS = ["LOGS", "PHOTOS", "HEALTH", "DOCTOR_VISITS"] as const;
+
 export const inviteCreateSchema = z.object({
   email: z.string().email(),
-  babyIds: z.array(z.string().min(1)).min(1),
+  babies: z
+    .array(
+      z.object({
+        babyId: z.string().min(1),
+        sections: z.array(z.enum(PARENT_SECTIONS)).min(1),
+      })
+    )
+    .min(1),
+});
+
+export const parentSectionsUpdateSchema = z.object({
+  sections: z.array(z.enum(PARENT_SECTIONS)).min(1),
 });
 
 export const photoUpdateSchema = z.object({

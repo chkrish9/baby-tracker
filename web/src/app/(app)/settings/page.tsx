@@ -6,14 +6,21 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
+import { Modal } from "@/components/ui/Modal";
 import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
 import { useToast } from "@/components/ui/Toast";
 import { apiFetch, logout } from "@/lib/api-client";
+import { SECTIONS, type Section } from "@/lib/sections";
+import { SectionPermissionsPicker } from "@/components/invite/SectionPermissionsPicker";
 
 const fetcher = (url: string) => apiFetch(url).then((r) => r.json());
 
-interface ParentLink { id: string; userId: string; role: "OWNER" | "PARENT"; user: { id: string; name: string | null; email: string }; }
+interface ParentLink { id: string; userId: string; role: "OWNER" | "PARENT"; sections: Section[]; user: { id: string; name: string | null; email: string }; }
 interface BabyWithParents { id: string; name: string; parents: ParentLink[]; }
+
+function sectionLabels(sections: Section[]) {
+  return SECTIONS.filter((s) => sections.includes(s.key)).map((s) => s.label).join(", ") || "No pages shared";
+}
 
 export default function SettingsPage() {
   const { data: user } = useSWR("/api/user/settings", fetcher);
@@ -28,10 +35,14 @@ export default function SettingsPage() {
   const [profileSaved, setProfileSaved] = useState(false);
 
   const [inviteEmail, setInviteEmail] = useState("");
-  const [selectedBabyIds, setSelectedBabyIds] = useState<Set<string>>(new Set());
+  const [selectedBabySections, setSelectedBabySections] = useState<Map<string, Set<Section>>>(new Map());
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+
+  const [editingParent, setEditingParent] = useState<{ babyId: string; link: ParentLink } | null>(null);
+  const [editSections, setEditSections] = useState<Set<Section>>(new Set());
+  const [savingPermissions, setSavingPermissions] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -66,25 +77,31 @@ export default function SettingsPage() {
     }
   }
 
-  function toggleBaby(id: string) {
-    setSelectedBabyIds((prev) => {
-      const next = new Set(prev);
+  function toggleBabyIncluded(id: string) {
+    setSelectedBabySections((prev) => {
+      const next = new Map(prev);
       if (next.has(id)) next.delete(id);
-      else next.add(id);
+      else next.set(id, new Set());
       return next;
     });
+  }
+
+  function toggleBabySection(babyId: string, sections: Set<Section>) {
+    setSelectedBabySections((prev) => new Map(prev).set(babyId, sections));
   }
 
   const ownedBabies = babies?.filter((baby) => baby.parents.some((p) => p.userId === session?.user?.id && p.role === "OWNER")) ?? [];
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
-    if (selectedBabyIds.size === 0) { toast("Select at least one baby to share", "error"); return; }
+    if (selectedBabySections.size === 0) { toast("Select at least one baby to share", "error"); return; }
+    const babiesPayload = Array.from(selectedBabySections, ([babyId, sections]) => ({ babyId, sections: Array.from(sections) }));
+    if (babiesPayload.some((b) => b.sections.length === 0)) { toast("Choose at least one page to share for each selected baby", "error"); return; }
     setInviteLoading(true);
     const res = await apiFetch("/api/invites", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: inviteEmail, babyIds: Array.from(selectedBabyIds) }),
+      body: JSON.stringify({ email: inviteEmail, babies: babiesPayload }),
     });
     setInviteLoading(false);
     if (!res.ok) { const d = await res.json().catch(() => ({})); toast(d.error ?? "Failed to create invite", "error"); return; }
@@ -92,7 +109,28 @@ export default function SettingsPage() {
     setInviteLink(`${window.location.origin}/invite/${token}`);
     toast("Invite created!", "success");
     setInviteEmail("");
-    setSelectedBabyIds(new Set());
+    setSelectedBabySections(new Map());
+  }
+
+  function openEditPermissions(babyId: string, link: ParentLink) {
+    setEditingParent({ babyId, link });
+    setEditSections(new Set(link.sections));
+  }
+
+  async function handleSavePermissions() {
+    if (!editingParent) return;
+    if (editSections.size === 0) { toast("Choose at least one page to share", "error"); return; }
+    setSavingPermissions(true);
+    const res = await apiFetch(`/api/babies/${editingParent.babyId}/parents/${editingParent.link.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sections: Array.from(editSections) }),
+    });
+    setSavingPermissions(false);
+    if (!res.ok) { const d = await res.json().catch(() => ({})); toast(d.error ?? "Failed to update access", "error"); return; }
+    await mutate("/api/babies");
+    toast("Access updated", "success");
+    setEditingParent(null);
   }
 
   async function handleRemoveParent(babyId: string, link: ParentLink) {
@@ -191,14 +229,21 @@ export default function SettingsPage() {
               <div className="space-y-2.5">
                 {baby.parents.map((link) => {
                   const canRemove = link.role !== "OWNER" && (isOwner || link.userId === session?.user?.id);
+                  const canEdit = link.role !== "OWNER" && isOwner;
                   return (
                     <div key={link.id} className="flex items-center gap-3">
                       <Avatar name={link.user.name ?? link.user.email} size={32} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{link.user.name ?? link.user.email}</p>
                         {link.user.name && <p className="text-xs text-foreground/50 truncate">{link.user.email}</p>}
+                        {link.role !== "OWNER" && <p className="text-xs text-foreground/40 truncate">{sectionLabels(link.sections)}</p>}
                       </div>
                       {link.role === "OWNER" && <Badge variant="pink">Owner</Badge>}
+                      {canEdit && (
+                        <Button size="sm" variant="secondary" onClick={() => openEditPermissions(baby.id, link)}>
+                          Edit access
+                        </Button>
+                      )}
                       {canRemove && (
                         <Button size="sm" variant="danger" loading={removingId === link.id} onClick={() => handleRemoveParent(baby.id, link)}>
                           {link.userId === session?.user?.id ? "Leave" : "Remove"}
@@ -220,20 +265,28 @@ export default function SettingsPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-foreground mb-2">Share access to</p>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {ownedBabies.map((baby) => (
-                  <label
-                    key={baby.id}
-                    className="flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3 cursor-pointer transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedBabyIds.has(baby.id)}
-                      onChange={() => toggleBaby(baby.id)}
-                      className="w-4 h-4 rounded accent-pink-500 flex-shrink-0"
-                    />
-                    <span className="text-sm font-medium text-foreground">{baby.name}</span>
-                  </label>
+                  <div key={baby.id}>
+                    <label className="flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3 cursor-pointer transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedBabySections.has(baby.id)}
+                        onChange={() => toggleBabyIncluded(baby.id)}
+                        className="w-4 h-4 rounded accent-pink-500 flex-shrink-0"
+                      />
+                      <span className="text-sm font-medium text-foreground">{baby.name}</span>
+                    </label>
+                    {selectedBabySections.has(baby.id) && (
+                      <div className="mt-2 pl-3">
+                        <p className="text-xs text-foreground/50 mb-1.5">Which pages can they see?</p>
+                        <SectionPermissionsPicker
+                          value={selectedBabySections.get(baby.id)!}
+                          onChange={(sections) => toggleBabySection(baby.id, sections)}
+                        />
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
@@ -352,6 +405,20 @@ export default function SettingsPage() {
           Sign out
         </button>
       </div>
+
+      <Modal open={!!editingParent} onClose={() => setEditingParent(null)} title="Edit access">
+        {editingParent && (
+          <div className="space-y-4 mt-2">
+            <p className="text-sm text-foreground/60">
+              Choose which pages {editingParent.link.user.name ?? editingParent.link.user.email} can see.
+            </p>
+            <SectionPermissionsPicker value={editSections} onChange={setEditSections} />
+            <Button loading={savingPermissions} onClick={handleSavePermissions} className="w-full">
+              Save
+            </Button>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

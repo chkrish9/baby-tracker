@@ -1,9 +1,11 @@
 "use client";
 import { use, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR, { mutate } from "swr";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
+import { useBabyPermissions } from "@/hooks/usePermissions";
 import { formatBytes } from "@/lib/utils";
 import { FlagAppointmentsModal } from "@/components/doctor-visit/FlagAppointmentsModal";
 import { apiFetch, filesUrl } from "@/lib/api-client";
@@ -118,12 +120,18 @@ function PhotoLightbox({ photos, index, onClose, onNavigate }: { photos: Photo[]
 
 export default function PhotosPage({ params }: { params: Promise<{ babyId: string }> }) {
   const { babyId } = use(params);
+  const router = useRouter();
+  const { hasSection, isLoading: permLoading } = useBabyPermissions(babyId);
   const { toast } = useToast();
   const [flaggingPhoto, setFlaggingPhoto] = useState<Photo | null>(null);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const { data: photos, isLoading: photosLoading } = useSWR(`/api/babies/${babyId}/photos`, fetcher);
+
+  useEffect(() => {
+    if (!permLoading && !hasSection("PHOTOS")) router.replace(`/babies/${babyId}`);
+  }, [permLoading, hasSection, babyId, router]);
 
   async function handlePhotoUpload(files: FileList | null) {
     if (!files?.length) return;
@@ -151,6 +159,8 @@ export default function PhotosPage({ params }: { params: Promise<{ babyId: strin
       toast(appointmentIds.length === 0 ? "Unflagged" : "Flagged for the doctor", "success");
     } else toast("Failed to update", "error");
   }
+
+  if (!permLoading && !hasSection("PHOTOS")) return null;
 
   return (
     <div className="max-w-lg mx-auto">

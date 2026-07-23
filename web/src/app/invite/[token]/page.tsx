@@ -6,8 +6,13 @@ import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { apiFetch } from "@/lib/api-client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { SECTIONS, type Section } from "@/lib/sections";
 
-interface InviteInfo { babies: { id: string; name: string }[]; invitedBy: { name?: string; email: string }; email: string; }
+interface InviteInfo { babies: { id: string; name: string; sections: Section[] }[]; invitedBy: { name?: string; email: string }; email: string; }
+
+function sectionLabels(sections: Section[]) {
+  return SECTIONS.filter((s) => sections.includes(s.key)).map((s) => s.label).join(", ");
+}
 
 function joinNames(names: string[]) {
   if (names.length <= 1) return names[0] ?? "";
@@ -62,6 +67,13 @@ export default function InviteAcceptPage({ params }: { params: Promise<{ token: 
               <span className="font-medium">{info.invitedBy.name ?? info.invitedBy.email}</span> invited you to track{" "}
               <span className="font-medium text-pink-600">{joinNames(info.babies.map((b) => b.name))}</span>.
             </p>
+            <div className="text-left bg-pink-50/50 rounded-2xl p-3 space-y-1">
+              {info.babies.map((baby) => (
+                <p key={baby.id} className="text-xs text-foreground/60">
+                  <span className="font-medium text-foreground/80">{baby.name}:</span> {sectionLabels(baby.sections)}
+                </p>
+              ))}
+            </div>
             {!session && (
               <p className="text-xs text-pink-400">You&apos;ll need to sign in or create an account first.</p>
             )}

@@ -4,7 +4,7 @@ import { db } from "../lib/db";
 import { asyncHandler } from "../lib/asyncHandler";
 import { requireAuth } from "../middleware/auth";
 import { requireCsrf } from "../middleware/csrf";
-import { requireBabyAccess } from "../middleware/ownership";
+import { requireBabyAccess, requireSectionAccess } from "../middleware/ownership";
 import { diaperCreateSchema, diaperUpdateSchema, appointmentLinksSchema } from "../lib/validation";
 import { NotFoundError, BadRequestError } from "../lib/errors";
 
@@ -13,6 +13,7 @@ const router = Router({ mergeParams: true });
 router.use(requireAuth);
 router.use(requireCsrf);
 router.use(requireBabyAccess);
+router.use(requireSectionAccess("LOGS"));
 
 router.get(
   "/",

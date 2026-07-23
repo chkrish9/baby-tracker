@@ -4,7 +4,7 @@ import { db } from "../lib/db";
 import { asyncHandler } from "../lib/asyncHandler";
 import { requireAuth } from "../middleware/auth";
 import { requireCsrf } from "../middleware/csrf";
-import { requireBabyAccess } from "../middleware/ownership";
+import { requireBabyAccess, requireSectionAccess } from "../middleware/ownership";
 import { doctorNoteCreateSchema, doctorNoteUpdateSchema } from "../lib/validation";
 import { findNextAppointmentId } from "../lib/appointments";
 import { NotFoundError } from "../lib/errors";
@@ -14,6 +14,7 @@ const router = Router({ mergeParams: true });
 router.use(requireAuth);
 router.use(requireCsrf);
 router.use(requireBabyAccess);
+router.use(requireSectionAccess("DOCTOR_VISITS"));
 
 router.get(
   "/",

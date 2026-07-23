@@ -3,7 +3,8 @@ import { db } from "../lib/db";
 import { asyncHandler } from "../lib/asyncHandler";
 import { requireAuth } from "../middleware/auth";
 import { requireCsrf } from "../middleware/csrf";
-import { requireBabyAccess } from "../middleware/ownership";
+import { requireBabyAccess, requireOwnerRole } from "../middleware/ownership";
+import { parentSectionsUpdateSchema } from "../lib/validation";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "../lib/errors";
 
 const router = Router({ mergeParams: true });
@@ -20,6 +21,22 @@ router.get(
       include: { user: { select: { id: true, name: true, email: true } } },
     });
     res.json(parents);
+  })
+);
+
+router.patch(
+  "/:parentId",
+  requireOwnerRole,
+  asyncHandler(async (req, res) => {
+    const { babyId, parentId } = req.params;
+    const { sections } = parentSectionsUpdateSchema.parse(req.body);
+
+    const targetLink = await db.babyParent.findUnique({ where: { id: parentId } });
+    if (!targetLink || targetLink.babyId !== babyId) throw new NotFoundError();
+    if (targetLink.role === "OWNER") throw new ForbiddenError("Cannot edit the owner's access");
+
+    const updated = await db.babyParent.update({ where: { id: parentId }, data: { sections } });
+    res.json(updated);
   })
 );
 

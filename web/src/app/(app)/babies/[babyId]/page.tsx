@@ -5,6 +5,7 @@ import { mutate } from "swr";
 import useSWR from "swr";
 import { useBaby } from "@/hooks/useBaby";
 import { useGrowthRecords } from "@/hooks/useHealth";
+import { useBabyPermissions } from "@/hooks/usePermissions";
 import { Avatar } from "@/components/ui/Avatar";
 import { Spinner } from "@/components/ui/Spinner";
 import { Modal } from "@/components/ui/Modal";
@@ -121,10 +122,15 @@ interface DiaperLog { id: string; type: string; notes?: string | null; loggedAt:
 export default function BabyProfilePage({ params }: { params: Promise<{ babyId: string }> }) {
   const { babyId } = use(params);
   const { data: baby, isLoading } = useBaby(babyId);
-  const { data: feedings } = useSWR(`/api/babies/${babyId}/feeding`, fetcher);
-  const { data: diapers } = useSWR(`/api/babies/${babyId}/diapers`, fetcher);
-  const { data: weightRecords } = useGrowthRecords(babyId, "WEIGHT");
-  const { data: heightRecords } = useGrowthRecords(babyId, "HEIGHT");
+  const { hasSection } = useBabyPermissions(babyId);
+  const canLogs = hasSection("LOGS");
+  const canHealth = hasSection("HEALTH");
+  const canDoctorVisits = hasSection("DOCTOR_VISITS");
+  const canPhotos = hasSection("PHOTOS");
+  const { data: feedings } = useSWR(canLogs ? `/api/babies/${babyId}/feeding` : null, fetcher);
+  const { data: diapers } = useSWR(canLogs ? `/api/babies/${babyId}/diapers` : null, fetcher);
+  const { data: weightRecords } = useGrowthRecords(canHealth ? babyId : "", "WEIGHT");
+  const { data: heightRecords } = useGrowthRecords(canHealth ? babyId : "", "HEIGHT");
   const { data: allBabies } = useSWR("/api/babies", fetcher);
   const { toast } = useToast();
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -213,152 +219,170 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
-          <div className="flex items-center gap-1.5 text-xs text-foreground/40 font-medium uppercase tracking-wide mb-1.5">
-            <BottleIcon />
-            Last feed
+      {canLogs && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
+            <div className="flex items-center gap-1.5 text-xs text-foreground/40 font-medium uppercase tracking-wide mb-1.5">
+              <BottleIcon />
+              Last feed
+            </div>
+            {lastFeeding ? (
+              <>
+                <p className="text-xl font-bold text-foreground">{timeAgo(lastFeeding.loggedAt)}</p>
+                <p className="text-xs text-foreground/50 mt-0.5">{FEEDING_LABELS[lastFeeding.type] ?? lastFeeding.type}{lastFeeding.notes ? ` · ${lastFeeding.notes}` : ""}</p>
+              </>
+            ) : (
+              <p className="text-sm text-foreground/40">No feeds yet</p>
+            )}
           </div>
-          {lastFeeding ? (
-            <>
-              <p className="text-xl font-bold text-foreground">{timeAgo(lastFeeding.loggedAt)}</p>
-              <p className="text-xs text-foreground/50 mt-0.5">{FEEDING_LABELS[lastFeeding.type] ?? lastFeeding.type}{lastFeeding.notes ? ` · ${lastFeeding.notes}` : ""}</p>
-            </>
-          ) : (
-            <p className="text-sm text-foreground/40">No feeds yet</p>
-          )}
-        </div>
-        <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
-          <div className="flex items-center gap-1.5 text-xs text-foreground/40 font-medium uppercase tracking-wide mb-1.5">
-            <DiaperIcon />
-            Diapers today
+          <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
+            <div className="flex items-center gap-1.5 text-xs text-foreground/40 font-medium uppercase tracking-wide mb-1.5">
+              <DiaperIcon />
+              Diapers today
+            </div>
+            <p className="text-xl font-bold text-foreground">{diapersToday}</p>
+            {lastDiaper && <p className="text-xs text-foreground/50 mt-0.5">Last {timeAgo(lastDiaper.loggedAt)}</p>}
           </div>
-          <p className="text-xl font-bold text-foreground">{diapersToday}</p>
-          {lastDiaper && <p className="text-xs text-foreground/50 mt-0.5">Last {timeAgo(lastDiaper.loggedAt)}</p>}
         </div>
-      </div>
+      )}
 
       {/* Feed totals today */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
-          <div className="flex items-center gap-1.5 text-xs text-foreground/40 font-medium uppercase tracking-wide mb-1.5">
-            <BottleIcon />
-            Total bottle feed today
+      {canLogs && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
+            <div className="flex items-center gap-1.5 text-xs text-foreground/40 font-medium uppercase tracking-wide mb-1.5">
+              <BottleIcon />
+              Total bottle feed today
+            </div>
+            <p className="text-xl font-bold text-foreground">
+              {bottleMlToday > 0 ? `${formatOz(bottleMlToday)} / ${formatMl(bottleMlToday)}` : "–"}
+            </p>
           </div>
-          <p className="text-xl font-bold text-foreground">
-            {bottleMlToday > 0 ? `${formatOz(bottleMlToday)} / ${formatMl(bottleMlToday)}` : "–"}
-          </p>
-        </div>
-        <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
-          <div className="flex items-center gap-1.5 text-xs text-foreground/40 font-medium uppercase tracking-wide mb-1.5">
-            <ClockIcon />
-            Total breast time today
+          <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
+            <div className="flex items-center gap-1.5 text-xs text-foreground/40 font-medium uppercase tracking-wide mb-1.5">
+              <ClockIcon />
+              Total breast time today
+            </div>
+            <p className="text-xl font-bold text-foreground">{breastMinToday > 0 ? formatMinutes(breastMinToday) : "–"}</p>
           </div>
-          <p className="text-xl font-bold text-foreground">{breastMinToday > 0 ? formatMinutes(breastMinToday) : "–"}</p>
         </div>
-      </div>
+      )}
 
       {/* Growth stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
-          <div className="flex items-center gap-1.5 text-xs text-foreground/40 font-medium uppercase tracking-wide mb-1.5">
-            <ScaleIcon />
-            Latest weight
+      {canHealth && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
+            <div className="flex items-center gap-1.5 text-xs text-foreground/40 font-medium uppercase tracking-wide mb-1.5">
+              <ScaleIcon />
+              Latest weight
+            </div>
+            {latestWeight ? (
+              <>
+                <p className="text-xl font-bold text-foreground">{latestWeight.value} {latestWeight.unit}</p>
+                <p className="text-xs text-foreground/50 mt-0.5">{timeAgo(latestWeight.recordedAt)}</p>
+              </>
+            ) : (
+              <p className="text-sm text-foreground/40">No weight logged</p>
+            )}
           </div>
-          {latestWeight ? (
-            <>
-              <p className="text-xl font-bold text-foreground">{latestWeight.value} {latestWeight.unit}</p>
-              <p className="text-xs text-foreground/50 mt-0.5">{timeAgo(latestWeight.recordedAt)}</p>
-            </>
-          ) : (
-            <p className="text-sm text-foreground/40">No weight logged</p>
-          )}
-        </div>
-        <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
-          <div className="flex items-center gap-1.5 text-xs text-foreground/40 font-medium uppercase tracking-wide mb-1.5">
-            <RulerIcon />
-            Latest height
+          <div className="bg-white rounded-2xl border border-pink-100/60 p-4">
+            <div className="flex items-center gap-1.5 text-xs text-foreground/40 font-medium uppercase tracking-wide mb-1.5">
+              <RulerIcon />
+              Latest height
+            </div>
+            {latestHeight ? (
+              <>
+                <p className="text-xl font-bold text-foreground">{latestHeight.value} {latestHeight.unit}</p>
+                <p className="text-xs text-foreground/50 mt-0.5">{timeAgo(latestHeight.recordedAt)}</p>
+              </>
+            ) : (
+              <p className="text-sm text-foreground/40">No height logged</p>
+            )}
           </div>
-          {latestHeight ? (
-            <>
-              <p className="text-xl font-bold text-foreground">{latestHeight.value} {latestHeight.unit}</p>
-              <p className="text-xs text-foreground/50 mt-0.5">{timeAgo(latestHeight.recordedAt)}</p>
-            </>
-          ) : (
-            <p className="text-sm text-foreground/40">No height logged</p>
-          )}
         </div>
-      </div>
+      )}
 
       {/* Doctor visit card */}
-      <Link href={`/babies/${babyId}/doctor-visit`}>
-        <div className="flex items-center gap-3 bg-pink-500 rounded-2xl p-4 text-white cursor-pointer hover:bg-pink-600 transition-colors">
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/20 flex-shrink-0">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 2v4a4 4 0 008 0V2" />
-              <path d="M9 10v2.5" />
-              <circle cx="9" cy="14.5" r="2" />
+      {canDoctorVisits && (
+        <Link href={`/babies/${babyId}/doctor-visit`}>
+          <div className="flex items-center gap-3 bg-pink-500 rounded-2xl p-4 text-white cursor-pointer hover:bg-pink-600 transition-colors">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/20 flex-shrink-0">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 2v4a4 4 0 008 0V2" />
+                <path d="M9 10v2.5" />
+                <circle cx="9" cy="14.5" r="2" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-sm">Prepare doctor visit</p>
+              <p className="text-xs text-white/70">View flagged items & photos</p>
+            </div>
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 4l6 5-6 5" />
             </svg>
           </div>
-          <div className="flex-1">
-            <p className="font-semibold text-sm">Prepare doctor visit</p>
-            <p className="text-xs text-white/70">View flagged items & photos</p>
-          </div>
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 4l6 5-6 5" />
-          </svg>
-        </div>
-      </Link>
+        </Link>
+      )}
 
       {/* Trends */}
-      <div className="space-y-3 mt-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground font-serif">Trends</h2>
-          <select
-            value={chartRange}
-            onChange={(e) => setChartRange(e.target.value as ChartRange)}
-            className="flex-shrink-0 rounded-2xl border border-pink-100 bg-white pl-3 pr-7 py-1.5 text-sm text-foreground focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
-            aria-label="Chart date range"
-          >
-            {RANGE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+      {(canLogs || canHealth) && (
+        <div className="space-y-3 mt-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-foreground font-serif">Trends</h2>
+            <select
+              value={chartRange}
+              onChange={(e) => setChartRange(e.target.value as ChartRange)}
+              className="flex-shrink-0 rounded-2xl border border-pink-100 bg-white pl-3 pr-7 py-1.5 text-sm text-foreground focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              aria-label="Chart date range"
+            >
+              {RANGE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          {canLogs && (
+            <>
+              <WeeklyStackedBarChart
+                title="Feedings"
+                series={FEED_SERIES}
+                data={feedChartData}
+                rangeLabel={chartRangeLabel}
+                emptyLabel={`No feedings logged ${chartRangePhrase}`}
+                tooltipExtraLines={feedTooltipExtraLines}
+                extraColumns={FEED_EXTRA_COLUMNS}
+              />
+              <WeeklyStackedBarChart
+                title="Diapers"
+                series={DIAPER_SERIES}
+                data={diaperChartData}
+                rangeLabel={chartRangeLabel}
+                emptyLabel={`No diaper changes logged ${chartRangePhrase}`}
+              />
+            </>
+          )}
+          {canHealth && (
+            <>
+              <GrowthLineChart
+                title="Weight"
+                points={weightPoints}
+                unit={latestWeight?.unit ?? "kg"}
+                emptyLabel="No weight logged yet"
+                color="#2a78d6"
+              />
+              <GrowthLineChart
+                title="Height"
+                points={heightPoints}
+                unit={latestHeight?.unit ?? "cm"}
+                emptyLabel="No height logged yet"
+                color="#1baf7a"
+              />
+            </>
+          )}
         </div>
-        <WeeklyStackedBarChart
-          title="Feedings"
-          series={FEED_SERIES}
-          data={feedChartData}
-          rangeLabel={chartRangeLabel}
-          emptyLabel={`No feedings logged ${chartRangePhrase}`}
-          tooltipExtraLines={feedTooltipExtraLines}
-          extraColumns={FEED_EXTRA_COLUMNS}
-        />
-        <WeeklyStackedBarChart
-          title="Diapers"
-          series={DIAPER_SERIES}
-          data={diaperChartData}
-          rangeLabel={chartRangeLabel}
-          emptyLabel={`No diaper changes logged ${chartRangePhrase}`}
-        />
-        <GrowthLineChart
-          title="Weight"
-          points={weightPoints}
-          unit={latestWeight?.unit ?? "kg"}
-          emptyLabel="No weight logged yet"
-          color="#2a78d6"
-        />
-        <GrowthLineChart
-          title="Height"
-          points={heightPoints}
-          unit={latestHeight?.unit ?? "cm"}
-          emptyLabel="No height logged yet"
-          color="#1baf7a"
-        />
-      </div>
+      )}
 
       {/* Today at a glance */}
-      {allEvents.length > 0 && (
+      {canLogs && allEvents.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-bold text-foreground font-serif">Today at a glance</h2>
@@ -388,41 +412,49 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
 
       <input ref={galleryPhotoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleGalleryPhotoUpload(e.target.files)} />
 
-      <button
-        onClick={() => setShowQuickAdd(true)}
-        className="fixed bottom-24 right-4 z-40 w-14 h-14 rounded-full bg-pink-500 hover:bg-pink-600 text-white shadow-lg flex items-center justify-center transition-colors"
-        aria-label="Quick add"
-      >
-        <PlusIcon />
-      </button>
+      {(canLogs || canPhotos) && (
+        <button
+          onClick={() => setShowQuickAdd(true)}
+          className="fixed bottom-24 right-4 z-40 w-14 h-14 rounded-full bg-pink-500 hover:bg-pink-600 text-white shadow-lg flex items-center justify-center transition-colors"
+          aria-label="Quick add"
+        >
+          <PlusIcon />
+        </button>
+      )}
 
       <Modal open={showQuickAdd} onClose={() => setShowQuickAdd(false)} title="Quick add">
         <div className="space-y-2 mt-2">
-          <Link href={`/babies/${babyId}/feeding`} onClick={() => setShowQuickAdd(false)}>
-            <div className="flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3.5 cursor-pointer transition-colors">
-              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-pink-500 text-white flex-shrink-0">
-                <BottleIcon />
+          {canLogs && (
+            <>
+              <Link href={`/babies/${babyId}/feeding`} onClick={() => setShowQuickAdd(false)}>
+                <div className="flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3.5 cursor-pointer transition-colors">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-pink-500 text-white flex-shrink-0">
+                    <BottleIcon />
+                  </div>
+                  <p className="font-medium text-foreground text-sm">Log feed</p>
+                </div>
+              </Link>
+              <Link href={`/babies/${babyId}/feeding?tab=diaper`} onClick={() => setShowQuickAdd(false)}>
+                <div className="flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3.5 cursor-pointer transition-colors">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-amber-500 text-white flex-shrink-0">
+                    <DiaperIcon />
+                  </div>
+                  <p className="font-medium text-foreground text-sm">Log diaper</p>
+                </div>
+              </Link>
+            </>
+          )}
+          {canPhotos && (
+            <button
+              onClick={() => galleryPhotoInputRef.current?.click()}
+              className="w-full flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3.5 cursor-pointer transition-colors"
+            >
+              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-sky-500 text-white flex-shrink-0">
+                <CameraIcon />
               </div>
-              <p className="font-medium text-foreground text-sm">Log feed</p>
-            </div>
-          </Link>
-          <Link href={`/babies/${babyId}/feeding?tab=diaper`} onClick={() => setShowQuickAdd(false)}>
-            <div className="flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3.5 cursor-pointer transition-colors">
-              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-amber-500 text-white flex-shrink-0">
-                <DiaperIcon />
-              </div>
-              <p className="font-medium text-foreground text-sm">Log diaper</p>
-            </div>
-          </Link>
-          <button
-            onClick={() => galleryPhotoInputRef.current?.click()}
-            className="w-full flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3.5 cursor-pointer transition-colors"
-          >
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-sky-500 text-white flex-shrink-0">
-              <CameraIcon />
-            </div>
-            <p className="font-medium text-foreground text-sm">Upload photo</p>
-          </button>
+              <p className="font-medium text-foreground text-sm">Upload photo</p>
+            </button>
+          )}
         </div>
       </Modal>
     </div>

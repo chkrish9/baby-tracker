@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import type { ParentSection } from "@prisma/client";
 import { db } from "../lib/db";
 import { ForbiddenError, UnauthorizedError } from "../lib/errors";
 
@@ -20,4 +21,13 @@ export function requireOwnerRole(req: Request, _res: Response, next: NextFunctio
     return next(new ForbiddenError("Only the owner can perform this action"));
   }
   next();
+}
+
+export function requireSectionAccess(section: ParentSection) {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    const link = req.babyParentLink;
+    if (!link) return next(new ForbiddenError());
+    if (link.role === "OWNER" || link.sections.includes(section)) return next();
+    next(new ForbiddenError());
+  };
 }

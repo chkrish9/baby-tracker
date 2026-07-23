@@ -1,8 +1,10 @@
 "use client";
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { mutate } from "swr";
 import { useBaby } from "@/hooks/useBaby";
 import { useVaccinations, useGrowthRecords, useHealthRecords } from "@/hooks/useHealth";
+import { useBabyPermissions } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
@@ -100,12 +102,18 @@ const TABS: { value: Tab; label: string }[] = [
 
 export default function HealthPage({ params }: { params: Promise<{ babyId: string }> }) {
   const { babyId } = use(params);
+  const router = useRouter();
+  const { hasSection, isLoading: permLoading } = useBabyPermissions(babyId);
   const { data: baby } = useBaby(babyId);
   const { data: vaccinations, isLoading: vaccLoading } = useVaccinations(babyId);
   const { data: weightRecords, isLoading: weightLoading } = useGrowthRecords(babyId, "WEIGHT");
   const { data: heightRecords, isLoading: heightLoading } = useGrowthRecords(babyId, "HEIGHT");
   const { data: healthRecords, isLoading: otherLoading } = useHealthRecords(babyId);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!permLoading && !hasSection("HEALTH")) router.replace(`/babies/${babyId}`);
+  }, [permLoading, hasSection, babyId, router]);
 
   const [tab, setTab] = useState<Tab>("vaccinations");
 
@@ -254,6 +262,8 @@ export default function HealthPage({ params }: { params: Promise<{ babyId: strin
     (tab === "weight" && weightLoading) ||
     (tab === "height" && heightLoading) ||
     (tab === "other" && otherLoading);
+
+  if (!permLoading && !hasSection("HEALTH")) return null;
 
   return (
     <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
