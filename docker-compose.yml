@@ -19,7 +19,7 @@ services:
   # ── Run Prisma migrations (one-shot, exits when done) ────────────────────
   migrate:
     build:
-      context: .
+      context: ./server
       dockerfile: Dockerfile
       target: migrator
     environment:
@@ -29,19 +29,21 @@ services:
         condition: service_healthy
     restart: "no"
 
-  # ── Next.js app (frontend + backend) ─────────────────────────────────────
-  app:
+  # ── Express API server ────────────────────────────────────────────────────
+  server:
     build:
-      context: .
+      context: ./server
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "3001:3000"
+      - "4000:4000"
     environment:
       DATABASE_URL: postgresql://babytracker:babytracker@db:5432/babytracker
-      AUTH_SECRET: ${AUTH_SECRET}
-      AUTH_TRUST_HOST: "true"
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3002}
       NODE_ENV: production
+      PORT: 4000
     volumes:
       # Persist uploaded files outside the container
       - uploads_data:/app/uploads
@@ -50,6 +52,21 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+
+  # ── Next.js UI ─────────────────────────────────────────────────────────────
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - server
 
 volumes:
   db_data:
