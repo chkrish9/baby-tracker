@@ -11,10 +11,12 @@ export function addDays(date: Date, days: number): Date {
   return d;
 }
 
-export function babyDisplayName(baby: { firstName?: string | null; lastName?: string | null; nickname?: string | null }): string {
+export function babyDisplayName(baby: { name?: string | null; firstName?: string | null; lastName?: string | null; nickname?: string | null }): string {
   const nickname = baby.nickname?.trim();
   if (nickname) return nickname;
-  return [baby.firstName, baby.lastName].filter(Boolean).join(" ").trim();
+  const fullName = [baby.firstName, baby.lastName].filter(Boolean).join(" ").trim();
+  if (fullName) return fullName;
+  return baby.name?.trim() ?? "";
 }
 
 export function formatBytes(bytes: number): string {
@@ -44,4 +46,17 @@ export function formatMinutes(totalMinutes: number): string {
   const h = Math.floor(min / 60);
   const m = min % 60;
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
+export function ageLabel(birthDate: string): string {
+  const birth = new Date(birthDate);
+  const days = Math.floor((Date.now() - birth.getTime()) / 86400000);
+  if (days < 7) return `${days}d old`;
+  if (days < 30) return `${Math.floor(days / 7)}w old`;
+  const months = Math.floor(days / 30.44);
+  if (months < 24) {
+    const wks = Math.floor((days - Math.floor(months * 30.44)) / 7);
+    return wks > 0 ? `${months} mo ${wks}w old` : `${months} mo old`;
+  }
+  return `${Math.floor(months / 12)}y old`;
 }

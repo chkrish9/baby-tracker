@@ -1,5 +1,5 @@
 "use client";
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR, { mutate } from "swr";
@@ -10,8 +10,12 @@ import { Label } from "@/components/ui/Label";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { VisitPrep } from "@/components/doctor-visit/VisitPrep";
+import { AppointmentPrintReport } from "@/components/doctor-visit/print/AppointmentPrintReport";
 import { useBabyPermissions } from "@/hooks/usePermissions";
+import { useBaby } from "@/hooks/useBaby";
 import { apiFetch } from "@/lib/api-client";
+import { babyDisplayName } from "@/lib/utils";
+import { generatePdfFromSections, waitForImages } from "@/lib/pdf";
 
 const fetcher = (url: string) => apiFetch(url).then((r) => { if (!r.ok) throw new Error("Not found"); return r.json(); });
 
@@ -64,6 +68,7 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ ba
   const { babyId, appointmentId } = use(params);
   const router = useRouter();
   const { hasSection, isLoading: permLoading } = useBabyPermissions(babyId);
+  const { data: baby } = useBaby(babyId);
   const { toast } = useToast();
   const { data: appt, error, isLoading } = useSWR<Appointment>(`/api/babies/${babyId}/appointments/${appointmentId}`, fetcher);
 
@@ -75,6 +80,21 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ ba
   const [apptDate, setApptDate] = useState("");
   const [apptNotes, setApptNotes] = useState("");
   const [apptLoading, setApptLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const printRootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!exporting || !appt) return;
+    (async () => {
+      const root = printRootRef.current;
+      if (!root) { setExporting(false); return; }
+      await waitForImages(root);
+      const name = baby ? babyDisplayName(baby) : "baby";
+      const filename = `${name}-appointment-${toDateInputValue(appt.date)}.pdf`.replace(/\s+/g, "-");
+      await generatePdfFromSections(root, filename);
+      setExporting(false);
+    })();
+  }, [exporting, appt, baby]);
 
   useEffect(() => {
     if (appt) {
@@ -153,6 +173,10 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ ba
         </div>
       </div>
 
+      <Button variant="secondary" size="sm" loading={exporting} onClick={() => setExporting(true)} className="mb-5">
+        Download PDF
+      </Button>
+
       <VisitPrep babyId={babyId} appointmentId={appointmentId} />
 
       {/* Edit appointment modal */}
@@ -175,6 +199,12 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ ba
           <Button type="submit" loading={apptLoading} className="w-full !py-3">Update appointment</Button>
         </form>
       </Modal>
+
+      {exporting && (
+        <div ref={printRootRef} style={{ position: "fixed", top: 0, left: -10000, width: 794, background: "#fff" }}>
+          <AppointmentPrintReport babyId={babyId} appointmentId={appointmentId} appointment={appt} />
+        </div>
+      )}
     </div>
   );
 }

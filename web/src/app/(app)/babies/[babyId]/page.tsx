@@ -17,22 +17,9 @@ import {
   FEED_SERIES, DIAPER_SERIES, RANGE_OPTIONS, daysForRange, bucketByDay,
   feedingExtra, feedTooltipExtraLines, FEED_EXTRA_COLUMNS, toGrowthPoints, type ChartRange,
 } from "@/lib/charts";
-import { formatOz, formatMl, formatMinutes } from "@/lib/utils";
+import { formatOz, formatMl, formatMinutes, ageLabel } from "@/lib/utils";
 
 const fetcher = (url: string) => apiFetch(url).then((r) => r.json());
-
-function ageLabel(birthDate: string) {
-  const birth = new Date(birthDate);
-  const days = Math.floor((Date.now() - birth.getTime()) / 86400000);
-  if (days < 7) return `${days}d old`;
-  if (days < 30) return `${Math.floor(days / 7)}w old`;
-  const months = Math.floor(days / 30.44);
-  if (months < 24) {
-    const wks = Math.floor((days - Math.floor(months * 30.44)) / 7);
-    return wks > 0 ? `${months} mo ${wks}w old` : `${months} mo old`;
-  }
-  return `${Math.floor(months / 12)}y old`;
-}
 
 function timeAgo(iso: string) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;

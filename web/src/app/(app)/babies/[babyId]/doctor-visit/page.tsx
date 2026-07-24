@@ -1,5 +1,5 @@
 "use client";
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import useSWR, { mutate } from "swr";
@@ -12,13 +12,15 @@ import { Label } from "@/components/ui/Label";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { VisitPrep } from "@/components/doctor-visit/VisitPrep";
+import { DoctorVisitPrintReport } from "@/components/doctor-visit/print/DoctorVisitPrintReport";
 import { apiFetch } from "@/lib/api-client";
 import { WeeklyStackedBarChart } from "@/components/charts/WeeklyStackedBarChart";
 import {
   FEED_SERIES, DIAPER_SERIES, RANGE_OPTIONS, daysForRange, bucketByDay,
   feedingExtra, feedTooltipExtraLines, FEED_EXTRA_COLUMNS, type ChartRange,
 } from "@/lib/charts";
-import { formatOz, formatMl, formatMinutes } from "@/lib/utils";
+import { formatOz, formatMl, formatMinutes, babyDisplayName } from "@/lib/utils";
+import { generatePdfFromSections, waitForImages } from "@/lib/pdf";
 
 const fetcher = (url: string) => apiFetch(url).then((r) => r.json());
 
@@ -103,6 +105,8 @@ export default function DoctorVisitPage({ params }: { params: Promise<{ babyId: 
   const [apptLoading, setApptLoading] = useState(false);
   const [showApptHistory, setShowApptHistory] = useState(false);
   const [chartRange, setChartRange] = useState<ChartRange>("7d");
+  const [exporting, setExporting] = useState(false);
+  const printRootRef = useRef<HTMLDivElement>(null);
 
   const chartDays = useMemo(() => daysForRange(chartRange), [chartRange]);
   const feedChartData = useMemo(() => bucketByDay(feedings ?? [], chartDays, feedingExtra), [feedings, chartDays]);
@@ -114,6 +118,19 @@ export default function DoctorVisitPage({ params }: { params: Promise<{ babyId: 
   useEffect(() => {
     if (!permLoading && !hasSection("DOCTOR_VISITS")) router.replace(`/babies/${babyId}`);
   }, [permLoading, hasSection, babyId, router]);
+
+  useEffect(() => {
+    if (!exporting) return;
+    (async () => {
+      const root = printRootRef.current;
+      if (!root) { setExporting(false); return; }
+      await waitForImages(root);
+      const name = baby ? babyDisplayName(baby) : "baby";
+      const filename = `${name}-doctor-visit-prep-${new Date().toISOString().slice(0, 10)}.pdf`.replace(/\s+/g, "-");
+      await generatePdfFromSections(root, filename);
+      setExporting(false);
+    })();
+  }, [exporting, baby]);
 
   if (babyLoading) return <div className="flex justify-center py-16"><Spinner /></div>;
   if (!permLoading && !hasSection("DOCTOR_VISITS")) return null;
@@ -193,7 +210,8 @@ export default function DoctorVisitPage({ params }: { params: Promise<{ babyId: 
             <path d="M10 12L6 8l4-4" />
           </svg>
         </Link>
-        <h1 className="text-2xl font-bold text-foreground font-serif">Doctor visit</h1>
+        <h1 className="text-2xl font-bold text-foreground font-serif flex-1">Doctor visit</h1>
+        <Button variant="secondary" size="sm" loading={exporting} onClick={() => setExporting(true)}>Download PDF</Button>
       </div>
 
       <p className="text-sm text-foreground/50 mb-5">
@@ -374,6 +392,25 @@ export default function DoctorVisitPage({ params }: { params: Promise<{ babyId: 
           </Button>
         </form>
       </Modal>
+
+      {exporting && (
+        <div ref={printRootRef} style={{ position: "fixed", top: 0, left: -10000, width: 794, background: "#fff" }}>
+          <DoctorVisitPrintReport
+            babyId={babyId}
+            chartRangeLabel={chartRangeLabel}
+            chartRangePhrase={chartRangePhrase}
+            feedChartData={feedChartData}
+            diaperChartData={diaperChartData}
+            feeds24h={feeds24h}
+            diapers24h={diapers24h}
+            avgDiapersPerDay={avgDiapersPerDay}
+            avgBottleMlPerDay={avgBottleMlPerDay}
+            avgBreastLeftMinPerDay={avgBreastLeftMinPerDay}
+            avgBreastRightMinPerDay={avgBreastRightMinPerDay}
+            nextAppt={nextAppt}
+          />
+        </div>
+      )}
     </div>
   );
 }

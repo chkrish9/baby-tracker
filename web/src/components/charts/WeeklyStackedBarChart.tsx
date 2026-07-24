@@ -20,7 +20,7 @@ interface TooltipExtraLine {
   color?: string;
 }
 
-interface ExtraColumn {
+export interface ExtraColumn {
   key: string;
   label: string;
   format: (day: ChartDay) => string;
@@ -63,6 +63,57 @@ function tickIndices(n: number): Set<number> {
   for (let i = 0; i < n; i += step) idxs.add(i);
   idxs.add(n - 1);
   return idxs;
+}
+
+export function ChartDataTable({
+  series,
+  data,
+  extraColumns,
+  scrollable = true,
+}: {
+  series: ChartSeries[];
+  data: ChartDay[];
+  extraColumns?: ExtraColumn[];
+  scrollable?: boolean;
+}) {
+  const totals = data.map((d) => series.reduce((sum, s) => sum + (d.counts[s.key] ?? 0), 0));
+
+  return (
+    <div className={`overflow-x-auto ${scrollable && data.length > DENSE_THRESHOLD ? "max-h-60 overflow-y-auto" : ""}`}>
+      <table className="w-full text-xs border-collapse">
+        <thead>
+          <tr>
+            <th className="text-left font-bold py-1 pr-2 sticky top-0 bg-white">Day</th>
+            {series.map((s) => (
+              <th key={s.key} className="text-right font-bold py-1 px-1.5 sticky top-0 bg-white">{s.label}</th>
+            ))}
+            {extraColumns?.map((c) => (
+              <th key={c.key} className="text-right font-bold py-1 px-1.5 sticky top-0 bg-white">{c.label}</th>
+            ))}
+            <th className="text-right font-bold py-1 pl-1.5 sticky top-0 bg-white">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((d, i) => (
+            <tr key={i}>
+              <td className="py-1 pr-2 text-foreground/70 whitespace-nowrap">{dayTick(d.date, true)} · {dateFmt(d.date)}</td>
+              {series.map((s) => (
+                <td key={s.key} className="text-right py-1 px-1.5 text-foreground tabular-nums">
+                  {d.counts[s.key] ?? 0}
+                </td>
+              ))}
+              {extraColumns?.map((c) => (
+                <td key={c.key} className="text-right py-1 px-1.5 text-foreground tabular-nums">
+                  {c.format(d)}
+                </td>
+              ))}
+              <td className="text-right py-1 pl-1.5 font-semibold text-foreground tabular-nums">{totals[i]}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 export function WeeklyStackedBarChart({ title, series, data, emptyLabel, rangeLabel, tooltipExtraLines, extraColumns }: Props) {
@@ -237,39 +288,8 @@ export function WeeklyStackedBarChart({ title, series, data, emptyLabel, rangeLa
           </button>
 
           {showTable && (
-            <div className={`mt-2 overflow-x-auto ${data.length > DENSE_THRESHOLD ? "max-h-60 overflow-y-auto" : ""}`}>
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr className="text-foreground/40">
-                    <th className="text-left font-medium py-1 pr-2 sticky top-0 bg-white">Day</th>
-                    {series.map((s) => (
-                      <th key={s.key} className="text-right font-medium py-1 px-1.5 sticky top-0 bg-white">{s.label}</th>
-                    ))}
-                    {extraColumns?.map((c) => (
-                      <th key={c.key} className="text-right font-medium py-1 px-1.5 sticky top-0 bg-white">{c.label}</th>
-                    ))}
-                    <th className="text-right font-medium py-1 pl-1.5 sticky top-0 bg-white">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.map((d, i) => (
-                    <tr key={i} className="border-t border-pink-100/60">
-                      <td className="py-1 pr-2 text-foreground/70 whitespace-nowrap">{dayTick(d.date, true)} · {dateFmt(d.date)}</td>
-                      {series.map((s) => (
-                        <td key={s.key} className="text-right py-1 px-1.5 text-foreground tabular-nums">
-                          {d.counts[s.key] ?? 0}
-                        </td>
-                      ))}
-                      {extraColumns?.map((c) => (
-                        <td key={c.key} className="text-right py-1 px-1.5 text-foreground tabular-nums">
-                          {c.format(d)}
-                        </td>
-                      ))}
-                      <td className="text-right py-1 pl-1.5 font-semibold text-foreground tabular-nums">{totals[i]}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="mt-2">
+              <ChartDataTable series={series} data={data} extraColumns={extraColumns} />
             </div>
           )}
         </>
