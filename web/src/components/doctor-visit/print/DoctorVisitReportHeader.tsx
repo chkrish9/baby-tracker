@@ -48,55 +48,57 @@ export function DoctorVisitReportHeader({ babyId, appointmentDate }: DoctorVisit
 
   return (
     <PrintSection>
-      {/* A genuine <table> (not a div styled with display:table) with one row of three
-          cells, all vertical-align:middle: icon, title text, baby info. table/vertical-align
-          rather than flex because html2canvas's flexbox support doesn't honor cross-axis
-          centering or equal-height stretching, which left the icon misaligned and the two
-          header halves at different heights in exported PDFs. A real <table>/<tr>/<td>
-          structure (rather than CSS display:table divs, which rely on browsers silently
-          synthesizing an anonymous row) renders more precisely in html2canvas. */}
-      <table className="w-full border-collapse pb-4 border-b-2 border-black">
-        <tbody>
-          <tr>
-            <td className="align-middle pr-3" style={{ width: "1%" }}>
-              {/* Inlined rather than <img src="/logo.svg">: html2canvas rasterizes external
-                  SVG images unreliably and was clipping the icon in exported PDFs. A small
-                  top margin compensates for the text column's line-height "leading" (the
-                  invisible space CSS reserves above/below glyphs, which the icon has none
-                  of) — without it, vertical-align:middle centers the icon against the
-                  text's full line box rather than its visible glyphs, reading as too high. */}
-              <svg width={64} height={64} viewBox="0 0 512 512" className="block" style={{ marginTop: "10px" }}>
-                <rect width="512" height="512" rx="112" fill="#4A6741" />
-                <g fill="none" stroke="white" strokeWidth="22" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M226 138 Q226 102 256 102 Q286 102 286 138" />
-                  <rect x="206" y="138" width="100" height="30" rx="15" />
-                  <rect x="178" y="168" width="156" height="238" rx="48" />
-                  <line x1="194" y1="252" x2="222" y2="252" />
-                  <line x1="194" y1="300" x2="222" y2="300" />
-                  <line x1="194" y1="348" x2="222" y2="348" />
-                </g>
-              </svg>
-            </td>
-            <td className="align-middle whitespace-nowrap" style={{ width: "1%" }}>
-              {/* leading-tight on both lines: default line-height adds invisible space
-                  above/below the glyphs (typographic "leading"). The icon has no such
-                  padding, so with normal leading the text's CSS-computed vertical center
-                  (which includes that invisible space) sits visibly lower than the icon's
-                  true center even though the cell itself is correctly vertical-align:middle. */}
-              <p className="text-xs font-semibold uppercase tracking-widest text-black/50 leading-tight">Little Notes</p>
-              <h1 className="text-xl font-bold leading-tight">Doctor Visit Preparation</h1>
-            </td>
-            <td className="align-middle text-right text-sm pl-4">
-              <p className="text-lg font-bold">{babyDisplayName(baby)}</p>
-              <p className="text-black/60">DOB: {formatDate(baby.birthDate)}</p>
-              <p className="text-black/60">Age: {fullAgeBreakdown(baby.birthDate)}</p>
-              <p className="text-black/60">
-                Appointment: {appointmentDate ? formatDate(appointmentDate) : "No appointment scheduled"}
-              </p>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      {/* Flex for the left/right split (main-axis distribution via justify-between is
+          fine in html2canvas). No items-center here — cross-axis centering isn't
+          reliable in html2canvas's flexbox support, which is exactly what caused the
+          original icon-misalignment bug. Instead this relies on flex's default
+          align-items: stretch, which makes both columns the row's full height (matching
+          the taller right column) without invoking that buggy centering path. The inner
+          table (h-full so it actually fills that stretched height) then centers the
+          icon+title against each other within it via plain vertical-align:middle. */}
+      <div className="flex justify-between gap-4 pb-4 border-b-2 border-black">
+        <table className="border-collapse h-full">
+          <tbody>
+            <tr>
+              <td className="align-middle pr-3">
+                {/* Inlined rather than <img src="/logo.svg">: html2canvas rasterizes external
+                    SVG images unreliably and was clipping the icon in exported PDFs. */}
+                <svg width={64} height={64} viewBox="0 0 512 512" className="block">
+                  <rect width="512" height="512" rx="112" fill="#4A6741" />
+                  <g fill="none" stroke="white" strokeWidth="22" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M226 138 Q226 102 256 102 Q286 102 286 138" />
+                    <rect x="206" y="138" width="100" height="30" rx="15" />
+                    <rect x="178" y="168" width="156" height="238" rx="48" />
+                    <line x1="194" y1="252" x2="222" y2="252" />
+                    <line x1="194" y1="300" x2="222" y2="300" />
+                    <line x1="194" y1="348" x2="222" y2="348" />
+                  </g>
+                </svg>
+              </td>
+              <td className="align-middle whitespace-nowrap">
+                {/* leading-tight shrinks the line-height "leading" (invisible space CSS
+                    reserves above/below glyphs, which the icon has none of) so the visible
+                    text sits closer to the cell's true vertical-align:middle center. The
+                    remaining gap is a plain visual nudge via transform (doesn't affect
+                    layout/centering math, so — unlike moving the icon — there's no clipping
+                    risk even though this cell has less slack than the icon's). */}
+                <div style={{ transform: "translateY(-10px)" }}>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-black/50 leading-tight">Little Notes</p>
+                  <h1 className="text-xl font-bold leading-tight">Doctor Visit Preparation</h1>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div className="text-right text-sm">
+          <p className="text-lg font-bold">{babyDisplayName(baby)}</p>
+          <p className="text-black/60">DOB: {formatDate(baby.birthDate)}</p>
+          <p className="text-black/60">Age: {fullAgeBreakdown(baby.birthDate)}</p>
+          <p className="text-black/60">
+            Appointment: {appointmentDate ? formatDate(appointmentDate) : "No appointment scheduled"}
+          </p>
+        </div>
+      </div>
     </PrintSection>
   );
 }

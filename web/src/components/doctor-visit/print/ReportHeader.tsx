@@ -60,7 +60,6 @@ export function ReportHeader({ babyId, title, subtitle }: ReportHeaderProps) {
           <p className="text-black/60">{weightLabel} · {heightLabel}</p>
         </div>
       </div>
-      <p className="text-xs text-black/40 mt-2">Generated on {new Date().toLocaleString()}</p>
     </PrintSection>
   );
 }
