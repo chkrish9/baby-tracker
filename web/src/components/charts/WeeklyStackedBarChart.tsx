@@ -272,9 +272,17 @@ export function WeeklyStackedBarChart({ title, series, data, emptyLabel, rangeLa
           {/* Legend */}
           <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-2 border-t border-pink-100/60">
             {series.map((s) => (
-              <div key={s.key} className="flex items-center gap-1.5">
-                <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: s.color }} />
-                <span className="text-xs text-foreground/60">{s.label}</span>
+              // table/table-cell + align-middle rather than flex items-center: when this
+              // chart gets captured for PDF export, html2canvas doesn't honor flex
+              // cross-axis centering, which left the color dot sitting above the label
+              // instead of centered beside it.
+              <div key={s.key} className="table">
+                <div className="table-cell align-middle pr-1.5">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: s.color }} />
+                </div>
+                <div className="table-cell align-middle">
+                  <span className="text-xs text-foreground/60">{s.label}</span>
+                </div>
               </div>
             ))}
           </div>

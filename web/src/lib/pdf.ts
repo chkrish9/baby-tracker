@@ -7,6 +7,21 @@ const CAPTURE_WIDTH_PX = 794; // A4 width at 96dpi
 const CAPTURE_SCALE = 2;
 const SLICE_SNAP_SEARCH_PX = 160; // ~ a couple of table rows at CAPTURE_SCALE
 const SLICE_MIN_PROGRESS_PX = 24; // guarantees each page makes forward progress
+const MIN_CONTENT_AFTER_HEADER_PX = 60; // ~ one table row at CAPTURE_SCALE
+
+// Measures how far a section's title sits from its first piece of actual content (in
+// canvas px, i.e. already scaled by CAPTURE_SCALE) — used to detect and avoid stranding
+// a section's heading alone at the bottom of a page with its content pushed entirely to
+// the next one. Returns 0 (meaning "no check needed") for title-only banner sections that
+// have no following content, since there's nothing for the heading to be orphaned from.
+function getHeaderBoundaryPx(sectionEl: HTMLElement): number {
+  const h2 = sectionEl.querySelector(":scope > h2");
+  const content = h2?.nextElementSibling;
+  if (!h2 || !content) return 0;
+  const sectionTop = sectionEl.getBoundingClientRect().top;
+  const contentTop = content.getBoundingClientRect().top;
+  return (contentTop - sectionTop) * CAPTURE_SCALE;
+}
 
 // Finds the "most blank" row within the search window immediately before the naive
 // slice boundary, and ends the slice there instead — so a page break doesn't land in the
@@ -83,6 +98,7 @@ export async function generatePdfFromSections(root: HTMLElement, filename: strin
     });
 
     let offsetPx = 0;
+    const headerBoundaryPx = getHeaderBoundaryPx(sectionEl);
 
     // Fill whatever space remains on the current page first (even if that's less
     // than a full page), then continue slicing across as many further pages as
@@ -96,6 +112,25 @@ export async function generatePdfFromSections(root: HTMLElement, filename: strin
         pdf.addPage();
         cursorYPt = 0;
         remainingPt = CONTENT_HEIGHT_PT;
+      }
+
+      // Orphaned-header guard: only at the very start of a section, and only when this
+      // page already has other content on it (cursorYPt > 0 — otherwise we'd be adding a
+      // blank page before an already-fresh one, and could loop forever if a single
+      // section's header genuinely can't fit with room to spare on any page). If what's
+      // left of the page would fit the header but not at least a sliver of the content
+      // after it, the header would end up stranded alone at the bottom with its content
+      // starting fresh on the next page — push the whole section over instead so header
+      // and content stay together. Sections with no separate content (title-only banners)
+      // have headerBoundaryPx === 0 and skip this entirely, since there's nothing to
+      // orphan the heading from.
+      if (offsetPx === 0 && cursorYPt > 0 && headerBoundaryPx > 0) {
+        const remainingPxForHeaderCheck = remainingPt / ptPerPx;
+        if (remainingPxForHeaderCheck < headerBoundaryPx + MIN_CONTENT_AFTER_HEADER_PX) {
+          pdf.addPage();
+          cursorYPt = 0;
+          remainingPt = CONTENT_HEIGHT_PT;
+        }
       }
 
       const remainingPx = remainingPt / ptPerPx;
@@ -137,5 +172,9 @@ export async function generatePdfFromSections(root: HTMLElement, filename: strin
     }
   }
 
+  if (typeof window !== "undefined" && (window as unknown as { __debugPdf?: boolean }).__debugPdf) {
+    (window as unknown as { __debugPdfUrl?: string }).__debugPdfUrl = pdf.output("bloburl") as unknown as string;
+    return;
+  }
   pdf.save(filename);
 }
