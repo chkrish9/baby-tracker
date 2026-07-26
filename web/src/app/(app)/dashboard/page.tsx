@@ -11,15 +11,31 @@ import { apiFetch, filesUrl } from "@/lib/api-client";
 
 function ageLabel(birthDate: string) {
   const birth = new Date(birthDate);
-  const days = Math.floor((Date.now() - birth.getTime()) / 86400000);
-  if (days < 7) return `${days}d old`;
-  if (days < 30) return `${Math.floor(days / 7)}w old`;
-  const months = Math.floor(days / 30.44);
-  if (months < 24) {
-    const wks = Math.floor((days - Math.floor(months * 30.44)) / 7);
-    return wks > 0 ? `${months} mo ${wks}w old` : `${months} mo old`;
+  const now = new Date();
+
+  let years = now.getFullYear() - birth.getFullYear();
+  let months = now.getMonth() - birth.getMonth();
+  let days = now.getDate() - birth.getDate();
+
+  if (days < 0) {
+    months -= 1;
+    days += new Date(now.getFullYear(), now.getMonth(), 0).getDate();
   }
-  return `${Math.floor(months / 12)}y old`;
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+
+  const weeks = Math.floor(days / 7);
+  days = days % 7;
+
+  const parts: string[] = [];
+  if (years > 0) parts.push(`${years}y`);
+  if (months > 0) parts.push(`${months}mo`);
+  if (weeks > 0) parts.push(`${weeks}w`);
+  if (days > 0 || parts.length === 0) parts.push(`${days}d`);
+
+  return `${parts.join(" ")} old`;
 }
 
 function EditIcon() {
