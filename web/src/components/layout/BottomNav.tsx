@@ -90,6 +90,7 @@ export function BottomNav() {
     }
   }, [pathname]);
 
+  const isBabiesListPage = pathname === "/dashboard";
   const isDashboard = pathname === "/dashboard" || (!!activeBabyId && pathname === `/babies/${activeBabyId}`);
   const isLogs = !!activeBabyId && (pathname.startsWith(`/babies/${activeBabyId}/feeding`) || pathname.startsWith(`/babies/${activeBabyId}/diapers`));
   const isPhotos = !!activeBabyId && (pathname.startsWith(`/babies/${activeBabyId}/documents`) || pathname.startsWith(`/babies/${activeBabyId}/photos`));
@@ -103,7 +104,7 @@ export function BottomNav() {
 
   const items = [
     { href: dashHref, label: hasBabies ? "Dashboard" : "Home", icon: hasBabies ? <DashboardIcon /> : <HomeIcon />, active: isDashboard },
-    ...(hasBabies
+    ...(hasBabies && !isBabiesListPage
       ? [
           ...(hasSection("LOGS") ? [{ href: logsHref, label: "Logs", icon: <LogsIcon />, active: isLogs }] : []),
           ...(hasSection("PHOTOS") ? [{ href: photosHref, label: "Photos", icon: <PhotosIcon />, active: isPhotos }] : []),
