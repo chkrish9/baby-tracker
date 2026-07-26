@@ -103,7 +103,7 @@ export function BottomNav() {
   const healthHref = activeBabyId ? `/babies/${activeBabyId}/health` : "/dashboard";
 
   const items = [
-    { href: dashHref, label: hasBabies ? "Dashboard" : "Home", icon: hasBabies ? <DashboardIcon /> : <HomeIcon />, active: isDashboard },
+    { href: dashHref, label: isBabiesListPage ? "Home" : "Dashboard", icon: isBabiesListPage ? <HomeIcon /> : <DashboardIcon />, active: isDashboard },
     ...(hasBabies && !isBabiesListPage
       ? [
           ...(hasSection("LOGS") ? [{ href: logsHref, label: "Logs", icon: <LogsIcon />, active: isLogs }] : []),
