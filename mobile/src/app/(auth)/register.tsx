@@ -1,0 +1,154 @@
+import { Image } from "expo-image";
+import { Link, router, useLocalSearchParams } from "expo-router";
+import { useState } from "react";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { useAuth } from "@/lib/auth";
+import { useTheme } from "@/theme/ThemeContext";
+import { fixedColors } from "@/theme/tokens";
+import { textStyles } from "@/theme/typography";
+
+const logo = require("../../../assets/images/icon.png");
+
+export default function RegisterScreen() {
+  const { colors } = useTheme();
+  const { signUp, signIn } = useAuth();
+  const params = useLocalSearchParams<{ callbackUrl?: string; email?: string }>();
+  const invitedEmail = params.email;
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState(invitedEmail ?? "");
+  const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit() {
+    setError("");
+    setLoading(true);
+    const registerResult = await signUp(email, password, name || undefined);
+    if ("error" in registerResult) {
+      setError(registerResult.error);
+      setLoading(false);
+      return;
+    }
+    const loginResult = await signIn(email, password, rememberMe);
+    setLoading(false);
+    if ("error" in loginResult) {
+      router.replace("/(auth)/login");
+      return;
+    }
+    if (params.callbackUrl) {
+      router.replace(params.callbackUrl as never);
+      return;
+    }
+    router.replace("/(app)/dashboard");
+  }
+
+  return (
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.flex}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <View style={styles.header}>
+            <Image source={logo} style={styles.logo} contentFit="contain" />
+            <Text style={[textStyles.wordmark, { color: colors.foreground }]}>Little Notes</Text>
+            <Text style={[styles.subtitle, { color: colors.foreground + "80" }]}>Create your account</Text>
+          </View>
+
+          <View style={[styles.card, { borderColor: colors.pink[100] + "99" }]}>
+            {!!error && (
+              <Text style={[styles.error, { color: fixedColors.red[600], backgroundColor: fixedColors.red[50] }]}>
+                {error}
+              </Text>
+            )}
+
+            <View style={styles.field}>
+              <Text style={[styles.label, { color: colors.foreground }]}>Name (optional)</Text>
+              <Input value={name} onChangeText={setName} autoComplete="name" placeholder="Your name" />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={[styles.label, { color: colors.foreground }]}>Email</Text>
+              <Input
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                autoComplete="email"
+                keyboardType="email-address"
+                placeholder="you@example.com"
+                editable={!invitedEmail}
+                style={invitedEmail ? styles.disabledInput : undefined}
+              />
+              {!!invitedEmail && (
+                <Text style={[styles.hint, { color: colors.foreground + "66" }]}>Locked to your invited email</Text>
+              )}
+            </View>
+
+            <View style={styles.field}>
+              <Text style={[styles.label, { color: colors.foreground }]}>Password</Text>
+              <Input
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete="new-password"
+                placeholder="Min 8 characters"
+              />
+            </View>
+
+            <View style={styles.rememberRow}>
+              <Switch value={rememberMe} onValueChange={setRememberMe} trackColor={{ true: colors.pink[500] }} />
+              <Text style={{ color: colors.foreground + "B3", fontSize: 14 }}>Remember me</Text>
+            </View>
+
+            <Button
+              loading={loading}
+              disabled={!email || password.length < 8}
+              onPress={handleSubmit}
+              size="lg"
+              style={styles.submit}
+            >
+              Create account
+            </Button>
+          </View>
+
+          <Text style={[styles.footer, { color: colors.foreground + "80" }]}>
+            Already have an account?{" "}
+            <Link href="/(auth)/login" style={[styles.footerLink, { color: colors.foreground }]}>
+              Sign in
+            </Link>
+          </Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1 },
+  flex: { flex: 1 },
+  scroll: { flexGrow: 1, justifyContent: "center", padding: 16 },
+  header: { alignItems: "center", marginBottom: 32 },
+  logo: { width: 80, height: 80, borderRadius: 24, marginBottom: 16 },
+  subtitle: { fontSize: 14, marginTop: 6 },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 24,
+    gap: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  error: { fontSize: 14, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 10 },
+  field: { gap: 6 },
+  label: { fontSize: 14, fontWeight: "500" },
+  hint: { fontSize: 12 },
+  disabledInput: { opacity: 0.6 },
+  rememberRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  submit: { width: "100%" },
+  footer: { textAlign: "center", fontSize: 14, marginTop: 20 },
+  footerLink: { fontWeight: "600" },
+});

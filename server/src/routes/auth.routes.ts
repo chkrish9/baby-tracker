@@ -51,15 +51,24 @@ router.post(
     const refreshToken = signRefreshToken(user.id, rememberMe);
     setAuthCookies(res, { accessToken, refreshToken, rememberMe });
 
-    res.json({ user: { id: user.id, email: user.email, name: user.name } });
+    // accessToken/refreshToken are also returned in the body (in addition to
+    // the httpOnly cookies) so native clients without a cookie jar can store
+    // them and authenticate via `Authorization: Bearer`.
+    res.json({ user: { id: user.id, email: user.email, name: user.name }, accessToken, refreshToken });
   })
 );
 
 router.post(
   "/refresh",
-  requireCsrf,
+  // A cookie-based (web) refresh carries an ambient credential and needs CSRF
+  // protection; a bearer-style (mobile) refresh sends its own refresh token
+  // and has nothing ambient to forge, so it's exempt.
+  (req, res, next) => {
+    if (!req.cookies?.refresh_token) return next();
+    return requireCsrf(req, res, next);
+  },
   asyncHandler(async (req, res) => {
-    const refreshToken = req.cookies?.refresh_token as string | undefined;
+    const refreshToken = (req.cookies?.refresh_token as string | undefined) ?? (req.body?.refreshToken as string | undefined);
     if (!refreshToken) throw new UnauthorizedError();
 
     let payload;
@@ -73,9 +82,9 @@ router.post(
     if (!user) throw new UnauthorizedError();
 
     const accessToken = signAccessToken(user.id);
-    setAccessCookie(res, accessToken);
+    if (req.cookies?.refresh_token) setAccessCookie(res, accessToken);
 
-    res.json({ ok: true });
+    res.json({ ok: true, accessToken });
   })
 );
 

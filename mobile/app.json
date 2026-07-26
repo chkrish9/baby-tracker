@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Little Notes",
+    "slug": "little-notes",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "littlenotes",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#EAE6DC",
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#4A6741",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#EAE6DC",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 160
+        }
+      ],
+      "expo-secure-store",
+      "@react-native-community/datetimepicker"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
