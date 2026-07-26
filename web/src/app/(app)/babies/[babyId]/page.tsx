@@ -1,6 +1,7 @@
 "use client";
 import { use, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { mutate } from "swr";
 import useSWR from "swr";
 import { useBaby } from "@/hooks/useBaby";
@@ -9,6 +10,8 @@ import { useBabyPermissions } from "@/hooks/usePermissions";
 import { Avatar } from "@/components/ui/Avatar";
 import { Spinner } from "@/components/ui/Spinner";
 import { Modal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { WeeklyStackedBarChart } from "@/components/charts/WeeklyStackedBarChart";
 import { apiFetch, filesUrl } from "@/lib/api-client";
@@ -41,6 +44,49 @@ const FEEDING_LABELS: Record<string, string> = {
 const DIAPER_LABELS: Record<string, string> = {
   WET: "Wet diaper", DIRTY: "Dirty diaper", BOTH: "Mixed diaper", DRY: "Dry diaper"
 };
+
+const FEED_TYPES = [
+  { value: "BOTTLE", label: "Bottle" },
+  { value: "BREAST_LEFT", label: "Breast (L)" },
+  { value: "BREAST_RIGHT", label: "Breast (R)" },
+  { value: "SOLID", label: "Solid" },
+];
+
+const DIAPER_TYPES = [
+  { value: "WET", label: "Wet" },
+  { value: "DIRTY", label: "Dirty" },
+  { value: "BOTH", label: "Mixed" },
+];
+
+const AMOUNT_UNITS = [
+  { value: "ml", label: "ml" },
+  { value: "oz", label: "oz" },
+];
+
+const DURATION_UNITS = [
+  { value: "min", label: "min" },
+  { value: "hr", label: "hr" },
+];
+
+function pad(n: number) {
+  return n.toString().padStart(2, "0");
+}
+
+function nowDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function nowTimeStr() {
+  const d = new Date();
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function combineDateTime(dateStr: string, timeStr: string) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const [h, min] = timeStr.split(":").map(Number);
+  return new Date(y, m - 1, d, h, min).toISOString();
+}
 
 function BottleIcon({ className }: { className?: string }) {
   return (
@@ -108,6 +154,7 @@ interface DiaperLog { id: string; type: string; notes?: string | null; loggedAt:
 
 export default function BabyProfilePage({ params }: { params: Promise<{ babyId: string }> }) {
   const { babyId } = use(params);
+  const router = useRouter();
   const { data: baby, isLoading } = useBaby(babyId);
   const { hasSection } = useBabyPermissions(babyId);
   const canLogs = hasSection("LOGS");
@@ -125,6 +172,27 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
 
   const [chartRange, setChartRange] = useState<ChartRange>("7d");
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [showFeedModal, setShowFeedModal] = useState(false);
+  const [showDiaperModal, setShowDiaperModal] = useState(false);
+
+  // Feeding form state
+  const [feedType, setFeedType] = useState("BOTTLE");
+  const [feedAmount, setFeedAmount] = useState("");
+  const [feedDuration, setFeedDuration] = useState("");
+  const [feedAmountUnit, setFeedAmountUnit] = useState("ml");
+  const [feedDurationUnit, setFeedDurationUnit] = useState("min");
+  const [feedNotes, setFeedNotes] = useState("");
+  const [feedDate, setFeedDate] = useState(nowDateStr);
+  const [feedTime, setFeedTime] = useState(nowTimeStr);
+  const [feedLoading, setFeedLoading] = useState(false);
+
+  // Diaper form state
+  const [diaperType, setDiaperType] = useState("WET");
+  const [diaperNotes, setDiaperNotes] = useState("");
+  const [diaperDate, setDiaperDate] = useState(nowDateStr);
+  const [diaperTime, setDiaperTime] = useState(nowTimeStr);
+  const [diaperLoading, setDiaperLoading] = useState(false);
+
   const chartDays = useMemo(() => daysForRange(chartRange), [chartRange]);
   const feedChartData = useMemo(() => bucketByDay(feedings ?? [], chartDays, feedingExtra), [feedings, chartDays]);
   const diaperChartData = useMemo(() => bucketByDay(diapers ?? [], chartDays), [diapers, chartDays]);
@@ -151,6 +219,46 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
     const res = await apiFetch(`/api/babies/${babyId}/photos`, { method: "POST", body: formData });
     if (res.ok) { await mutate(`/api/babies/${babyId}/photos`); toast("Photo uploaded!", "success"); }
     else { const d = await res.json().catch(() => ({})); toast(d.error ?? "Upload failed", "error"); }
+  }
+
+  async function handleLogFeed(e: React.FormEvent) {
+    e.preventDefault();
+    setFeedLoading(true);
+    const body: Record<string, unknown> = { type: feedType, amount: null, duration: null, unit: null };
+    const showAmount = feedType === "BOTTLE" || feedType === "SOLID";
+    const showDuration = feedType === "BREAST_LEFT" || feedType === "BREAST_RIGHT";
+    if (showAmount && feedAmount) { body.amount = parseFloat(feedAmount); body.unit = feedAmountUnit; }
+    if (showDuration && feedDuration) { body.duration = parseFloat(feedDuration); body.unit = feedDurationUnit; }
+    body.notes = feedNotes || null;
+    body.loggedAt = combineDateTime(feedDate, feedTime);
+    const res = await apiFetch(`/api/babies/${babyId}/feeding`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    setFeedLoading(false);
+    if (!res.ok) { toast("Failed to log", "error"); return; }
+    await mutate(`/api/babies/${babyId}/feeding`);
+    await mutate(`/api/babies/${babyId}`);
+    toast("Feeding logged!", "success");
+    setShowFeedModal(false);
+    setFeedAmount(""); setFeedDuration(""); setFeedNotes(""); setFeedType("BOTTLE");
+    setFeedDate(nowDateStr()); setFeedTime(nowTimeStr());
+    router.push(`/babies/${babyId}/feeding`);
+  }
+
+  async function handleLogDiaper(e: React.FormEvent) {
+    e.preventDefault();
+    setDiaperLoading(true);
+    const body: Record<string, unknown> = { type: diaperType };
+    body.notes = diaperNotes || null;
+    body.loggedAt = combineDateTime(diaperDate, diaperTime);
+    const res = await apiFetch(`/api/babies/${babyId}/diapers`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    setDiaperLoading(false);
+    if (!res.ok) { toast("Failed to log", "error"); return; }
+    await mutate(`/api/babies/${babyId}/diapers`);
+    await mutate(`/api/babies/${babyId}`);
+    toast("Diaper logged!", "success");
+    setShowDiaperModal(false);
+    setDiaperNotes(""); setDiaperType("WET");
+    setDiaperDate(nowDateStr()); setDiaperTime(nowTimeStr());
+    router.push(`/babies/${babyId}/feeding?tab=diaper`);
   }
 
   if (isLoading) return <div className="flex justify-center py-16"><Spinner /></div>;
@@ -413,22 +521,36 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
         <div className="space-y-2 mt-2">
           {canLogs && (
             <>
-              <Link href={`/babies/${babyId}/feeding`} onClick={() => setShowQuickAdd(false)}>
-                <div className="flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3.5 cursor-pointer transition-colors">
-                  <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-pink-500 text-white flex-shrink-0">
-                    <BottleIcon />
-                  </div>
-                  <p className="font-medium text-foreground text-sm">Log feed</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuickAdd(false);
+                  setFeedAmount(""); setFeedDuration(""); setFeedNotes(""); setFeedType("BOTTLE");
+                  setFeedDate(nowDateStr()); setFeedTime(nowTimeStr());
+                  setShowFeedModal(true);
+                }}
+                className="w-full flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3.5 cursor-pointer transition-colors"
+              >
+                <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-pink-500 text-white flex-shrink-0">
+                  <BottleIcon />
                 </div>
-              </Link>
-              <Link href={`/babies/${babyId}/feeding?tab=diaper`} onClick={() => setShowQuickAdd(false)}>
-                <div className="flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3.5 cursor-pointer transition-colors">
-                  <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-amber-500 text-white flex-shrink-0">
-                    <DiaperIcon />
-                  </div>
-                  <p className="font-medium text-foreground text-sm">Log diaper</p>
+                <p className="font-medium text-foreground text-sm">Log feed</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuickAdd(false);
+                  setDiaperNotes(""); setDiaperType("WET");
+                  setDiaperDate(nowDateStr()); setDiaperTime(nowTimeStr());
+                  setShowDiaperModal(true);
+                }}
+                className="w-full flex items-center gap-3 bg-pink-50/50 hover:bg-pink-50 rounded-2xl p-3.5 cursor-pointer transition-colors"
+              >
+                <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-amber-500 text-white flex-shrink-0">
+                  <DiaperIcon />
                 </div>
-              </Link>
+                <p className="font-medium text-foreground text-sm">Log diaper</p>
+              </button>
             </>
           )}
           {canPhotos && (
@@ -443,6 +565,112 @@ export default function BabyProfilePage({ params }: { params: Promise<{ babyId: 
             </button>
           )}
         </div>
+      </Modal>
+
+      {/* Log feeding modal */}
+      <Modal open={showFeedModal} onClose={() => setShowFeedModal(false)} title="Log a feeding">
+        <form onSubmit={handleLogFeed} className="space-y-4 mt-2">
+          <div>
+            <p className="text-sm font-medium text-foreground mb-2">Type</p>
+            <div className="flex gap-2">
+              {FEED_TYPES.map((t) => (
+                <button key={t.value} type="button" onClick={() => setFeedType(t.value)}
+                  className={`flex-1 py-2 rounded-2xl border text-sm font-medium transition-all ${feedType === t.value ? "border-pink-400 bg-pink-50 text-pink-700" : "border-pink-100 text-foreground/60"}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {(feedType === "BOTTLE" || feedType === "SOLID") && (
+            <div>
+              <p className="text-sm font-medium text-foreground mb-2">Amount</p>
+              <div className="flex gap-2">
+                <Input type="number" min="0" step="0.1" value={feedAmount} onChange={(e) => setFeedAmount(e.target.value)} placeholder="e.g. 120" className="flex-1" />
+                <select
+                  value={feedAmountUnit}
+                  onChange={(e) => setFeedAmountUnit(e.target.value)}
+                  className="flex-1 rounded-2xl border border-pink-100 bg-white px-3 py-2.5 text-sm text-foreground focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                >
+                  {AMOUNT_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+          {(feedType === "BREAST_LEFT" || feedType === "BREAST_RIGHT") && (
+            <div>
+              <p className="text-sm font-medium text-foreground mb-2">Duration</p>
+              <div className="flex gap-2">
+                <Input type="number" min="0" step="any" value={feedDuration} onChange={(e) => setFeedDuration(e.target.value)} placeholder="e.g. 15" className="flex-1" />
+                <select
+                  value={feedDurationUnit}
+                  onChange={(e) => setFeedDurationUnit(e.target.value)}
+                  className="flex-1 rounded-2xl border border-pink-100 bg-white px-3 py-2.5 text-sm text-foreground focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                >
+                  {DURATION_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground mb-2">Date</p>
+              <Input type="date" value={feedDate} onChange={(e) => setFeedDate(e.target.value)} required />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground mb-2">Time</p>
+              <Input type="time" value={feedTime} onChange={(e) => setFeedTime(e.target.value)} required />
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground mb-2">Note <span className="text-foreground/40 font-normal">(optional)</span></p>
+            <textarea
+              value={feedNotes}
+              onChange={(e) => setFeedNotes(e.target.value)}
+              placeholder="How did it go?"
+              rows={3}
+              className="block w-full rounded-2xl border border-pink-100 bg-white px-4 py-2.5 text-sm text-foreground placeholder:text-foreground/30 focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
+            />
+          </div>
+          <Button type="submit" loading={feedLoading} className="w-full !py-3">Save feeding</Button>
+        </form>
+      </Modal>
+
+      {/* Log diaper modal */}
+      <Modal open={showDiaperModal} onClose={() => setShowDiaperModal(false)} title="Log a diaper change">
+        <form onSubmit={handleLogDiaper} className="space-y-4 mt-2">
+          <div>
+            <p className="text-sm font-medium text-foreground mb-2">Type</p>
+            <div className="flex gap-2">
+              {DIAPER_TYPES.map((t) => (
+                <button key={t.value} type="button" onClick={() => setDiaperType(t.value)}
+                  className={`flex-1 py-2 rounded-2xl border text-sm font-medium transition-all ${diaperType === t.value ? "border-pink-400 bg-pink-50 text-pink-700" : "border-pink-100 text-foreground/60"}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground mb-2">Date</p>
+              <Input type="date" value={diaperDate} onChange={(e) => setDiaperDate(e.target.value)} required />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground mb-2">Time</p>
+              <Input type="time" value={diaperTime} onChange={(e) => setDiaperTime(e.target.value)} required />
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground mb-2">Note <span className="text-foreground/40 font-normal">(optional)</span></p>
+            <textarea
+              value={diaperNotes}
+              onChange={(e) => setDiaperNotes(e.target.value)}
+              placeholder="Colour, consistency, anything unusual..."
+              rows={3}
+              className="block w-full rounded-2xl border border-pink-100 bg-white px-4 py-2.5 text-sm text-foreground placeholder:text-foreground/30 focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
+            />
+          </div>
+          <Button type="submit" loading={diaperLoading} className="w-full !py-3">Save diaper</Button>
+        </form>
       </Modal>
     </div>
   );
