@@ -1,56 +1,102 @@
-# Welcome to your Expo app 👋
+# Little Notes — Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A native iOS/Android port of the [Little Notes](../README.md) baby tracker, built with Expo (React Native). It's a pixel-faithful port of the `web/` app — same screens, colors, fonts, icons, and charts — talking to the same [`server/`](../server) API.
 
-## Get started
+See the [root README](../README.md) for the full project overview, architecture, and how to run `server/`/`web/`.
 
-1. Install dependencies
+## Prerequisites
 
-   ```bash
-   npm install
-   ```
+- Node.js 20+
+- A running API — either `docker compose up` from the repo root, or `server/`'s local dev server (see the [root README](../README.md#running-locally-development))
+- [Expo Go](https://expo.dev/go) on your phone (must match this project's Expo SDK version — see below), or Xcode/Android Studio for a simulator/emulator
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Setup
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Create `.env.local` pointing at the API (copy `.env.example` as a starting point):
 
-### Other setup steps
+```env
+EXPO_PUBLIC_API_URL=http://localhost:4000
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+The right value depends on where the app runs, since `localhost` means something different on each target:
 
-## Learn more
+| Target | `EXPO_PUBLIC_API_URL` |
+|---|---|
+| iOS Simulator | `http://localhost:4000` |
+| Android Emulator | `http://10.0.2.2:4000` (the emulator's alias for the host machine) |
+| Physical device (Expo Go) | `http://<your-computer's-LAN-IP>:4000` — find it with `ipconfig getifaddr en0` (macOS) — phone and computer must be on the same Wi-Fi |
 
-To learn more about developing your project with Expo, look at the following resources:
+Native `fetch` isn't subject to browser CORS, so unlike `web/`, no `CORS_ORIGIN` changes are needed to reach the API from a device or simulator.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Running
 
-## Join the community
+```bash
+npx expo start
+```
 
-Join our community of developers creating universal apps.
+Then press `i` (iOS Simulator), `a` (Android emulator), or scan the printed QR code with Expo Go on a physical device.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+> **Expo SDK version**: this project targets **SDK 54** specifically (not the latest), because Expo Go on your phone only runs one SDK version at a time and 54 is broadly compatible. If `expo-doctor` or `npx expo install --check` ever reports mismatched versions after a dependency change, run `npx expo install --fix` to realign everything back to SDK 54's compatible set — don't hand-bump individual `expo-*` packages.
+
+## Auth
+
+The app authenticates with `Authorization: Bearer <accessToken>` instead of cookies (native apps have no cookie jar). Tokens are stored in `expo-secure-store` (falling back to `AsyncStorage` on the `web` Expo target, which `expo-secure-store` doesn't support). See `src/lib/apiClient.ts` and `src/lib/auth.tsx`.
+
+## Project Structure
+
+```
+mobile/
+├── app.json                  # Expo config — name, scheme, splash, plugins
+├── .env.local                # EXPO_PUBLIC_API_URL (gitignored — copy from .env.example)
+└── src/
+    ├── app/                   # Expo Router routes (file-based, mirrors web/'s URL structure)
+    │   ├── _layout.tsx        # Root layout — font loading, ThemeProvider, AuthProvider
+    │   ├── index.tsx          # Redirects to /dashboard or /login based on auth state
+    │   ├── (auth)/            # login, register — no chrome
+    │   ├── invite/[token]/    # Public invite landing screen
+    │   └── (app)/             # Auth-guarded — Navbar + custom bottom tab bar
+    │       ├── dashboard.tsx  # Baby list
+    │       ├── settings.tsx
+    │       └── babies/
+    │           ├── new.tsx
+    │           └── [babyId]/  # Per-baby access guard + BabyContext
+    │               ├── index.tsx      # Profile — stats, trends, quick-add
+    │               ├── edit.tsx
+    │               ├── feeding.tsx    # Combined feeding/diaper logs
+    │               ├── health.tsx     # Vaccines, weight, height, other records
+    │               ├── photos.tsx     # Grid + lightbox
+    │               └── doctor-visit/  # Overview + per-appointment detail + PDF export
+    ├── components/
+    │   ├── icons/              # One react-native-svg component per icon, ported from web/'s inline SVGs
+    │   ├── ui/                  # Button, Card, Avatar, Badge, Input, Modal, Toast, ThemeSwitcher…
+    │   ├── layout/               # BottomTabBar, Navbar
+    │   ├── charts/                # GrowthLineChart, WeeklyStackedBarChart (react-native-svg + d3)
+    │   ├── doctor-visit/           # VisitPrep, AppointmentFormModal, pdfTemplate/pdfCharts
+    │   └── baby/, health/, photos/, invite/  # Screen-specific forms & widgets
+    ├── hooks/                   # useBaby, useSectionAccess, useActiveBaby, usePhotos…
+    ├── lib/
+    │   ├── apiClient.ts         # Bearer-token fetch wrapper — mirrors web/'s api-client.ts
+    │   ├── auth.tsx             # AuthProvider — SecureStore token lifecycle, refresh-on-401
+    │   ├── storage.ts           # SecureStore wrapper (falls back to AsyncStorage on web target)
+    │   ├── pdf.ts               # PDF generation (expo-print) + authenticated image → data URI
+    │   └── dates.ts             # Date/time helpers ported from web/'s lib/utils.ts
+    └── theme/
+        ├── tokens.ts            # Colors/radii/shadows transcribed verbatim from web/'s globals.css
+        └── ThemeContext.tsx     # Theme provider + AsyncStorage persistence + server sync
+```
+
+## Design fidelity
+
+This app intentionally avoids "native-feeling" redesigns — every screen is meant to match `web/` exactly:
+
+- **Colors** live in `src/theme/tokens.ts`, copied verbatim from `web/src/app/globals.css`'s CSS variables (all 4 themes). If web's palette ever changes, diff that file and update `tokens.ts` to match — don't eyeball it.
+- **Charts** (`src/components/charts/`) are hand-built with `react-native-svg` + `d3-scale`/`d3-shape`, the same D3-math approach `web/`'s charts use (no chart library on either side).
+- **Icons** (`src/components/icons/`) are direct ports of web's inline SVGs — same paths, same stroke widths.
+- **Navigation** uses a custom bottom tab bar and top navbar (not Expo Router's built-in `Tabs`), because the active-tab pill styling and per-baby permission gating don't map cleanly onto `Tabs.Screen` config.
+- **PDF export** (`src/lib/pdf.ts`, `src/components/doctor-visit/pdfTemplate.ts`) reconstructs the exact same report sections as `web/`'s print components, rendering charts as real vector SVG (not a screenshot) since `expo-print`'s HTML renderer supports SVG natively.
+
+If you're porting a new web screen or fixing a mismatch, read the corresponding file under `web/src/` first and match it section-for-section rather than approximating from memory.
