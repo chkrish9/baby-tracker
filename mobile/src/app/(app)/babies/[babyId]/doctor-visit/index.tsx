@@ -16,11 +16,13 @@ import {
   feedingExtra,
 } from "@/components/charts/chartHelpers";
 import { AppointmentFormModal, Appointment } from "@/components/doctor-visit/AppointmentFormModal";
-import { buildVisitPdfHtml } from "@/components/doctor-visit/pdfTemplate";
+import { buildDoctorVisitPdfHtml } from "@/components/doctor-visit/pdfTemplate";
 import { VisitPrep } from "@/components/doctor-visit/VisitPrep";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { useBaby } from "@/hooks/useBaby";
+import { useGrowthRecords, useHealthRecords, useVaccinations } from "@/hooks/useHealth";
+import { toGrowthPoints } from "@/components/charts/chartHelpers";
 import { apiFetch } from "@/lib/apiClient";
 import { formatApptDate, formatMinutes, formatMl, formatOz, relativeDayLabel, startOfToday } from "@/lib/dates";
 import { generateAndSharePdf, imageToDataUri } from "@/lib/pdf";
@@ -28,6 +30,13 @@ import { useTheme } from "@/theme/ThemeContext";
 import { textStyles } from "@/theme/typography";
 
 const fetcher = (url: string) => apiFetch(url).then((r) => r.json());
+
+const DIAPER_LABELS: Record<string, string> = {
+  WET: "Wet diaper",
+  DIRTY: "Dirty diaper",
+  BOTH: "Mixed diaper",
+  DRY: "Dry diaper",
+};
 
 interface FeedingLog {
   id: string;
@@ -53,6 +62,10 @@ export default function DoctorVisitScreen() {
   const { data: feedings } = useSWR(`/babies/${babyId}/feeding`, fetcher);
   const { data: diapers } = useSWR(`/babies/${babyId}/diapers`, fetcher);
   const { data: appointments } = useSWR<Appointment[]>(`/babies/${babyId}/appointments`, fetcher);
+  const { data: vaccinations } = useVaccinations(babyId);
+  const { data: weightRecords } = useGrowthRecords(babyId, "WEIGHT");
+  const { data: heightRecords } = useGrowthRecords(babyId, "HEIGHT");
+  const { data: healthRecords } = useHealthRecords(babyId);
 
   const [showApptModal, setShowApptModal] = useState(false);
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null);
@@ -122,17 +135,15 @@ export default function DoctorVisitScreen() {
   }
 
   async function handleExportPdf() {
+    if (!baby) return;
     setExporting(true);
     try {
-      const notesRes = await apiFetch(`/babies/${babyId}/doctor-notes?appointmentId=${nextAppt?.id ?? "unassigned"}`);
+      const scope = nextAppt?.id ?? "unassigned";
+      const notesRes = await apiFetch(`/babies/${babyId}/doctor-notes?appointmentId=${scope}`);
       const questions = notesRes.ok ? await notesRes.json() : [];
-      const photosRes = await apiFetch(
-        `/babies/${babyId}/photos?flagged=true&appointmentId=${nextAppt?.id ?? "unassigned"}`
-      );
+      const photosRes = await apiFetch(`/babies/${babyId}/photos?flagged=true&appointmentId=${scope}`);
       const photos = photosRes.ok ? await photosRes.json() : [];
-      const diapersRes = await apiFetch(
-        `/babies/${babyId}/diapers?flagged=true&appointmentId=${nextAppt?.id ?? "unassigned"}`
-      );
+      const diapersRes = await apiFetch(`/babies/${babyId}/diapers?flagged=true&appointmentId=${scope}`);
       const flaggedDiapers = diapersRes.ok ? await diapersRes.json() : [];
 
       const photoRows = await Promise.all(
@@ -142,14 +153,20 @@ export default function DoctorVisitScreen() {
         }))
       );
 
-      const html = buildVisitPdfHtml({
-        babyName: baby?.name ?? "Baby",
-        generatedDate: new Date().toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }),
-        stats: { feeds24h, diapers24h },
+      const weightPoints = toGrowthPoints(weightRecords ?? []);
+      const heightPoints = toGrowthPoints(heightRecords ?? []);
+
+      const html = buildDoctorVisitPdfHtml({
+        babyName: baby.name,
+        birthDate: baby.birthDate,
+        appointmentDate: nextAppt?.date ?? null,
+        feeds24h,
+        diapers24h,
+        chartRangeLabel: chartRangeOption.label,
+        chartRangePhrase: chartRangeOption.phrase,
         averages: {
-          rangeLabel: chartRangeOption.label,
           diapersPerDay: avgDiapersPerDay > 0 ? avgDiapersPerDay.toFixed(1) : "–",
-          bottlePerDay: avgBottleMlPerDay > 0 ? formatOz(avgBottleMlPerDay) : "–",
+          bottlePerDay: avgBottleMlPerDay > 0 ? `${formatOz(avgBottleMlPerDay)} (${formatMl(avgBottleMlPerDay)})` : "–",
           breastLPerDay: avgBreastLeftMinPerDay > 0 ? formatMinutes(avgBreastLeftMinPerDay) : "–",
           breastRPerDay: avgBreastRightMinPerDay > 0 ? formatMinutes(avgBreastRightMinPerDay) : "–",
           breastTotalPerDay:
@@ -157,14 +174,30 @@ export default function DoctorVisitScreen() {
               ? formatMinutes(avgBreastLeftMinPerDay + avgBreastRightMinPerDay)
               : "–",
         },
-        appointments: allAppointments.map((a) => ({ dateLabel: formatApptDate(a.date), notes: a.notes })),
+        feedSeries: FEED_SERIES,
+        diaperSeries: DIAPER_SERIES,
+        feedChartData,
+        diaperChartData,
+        feedExtraColumns: FEED_EXTRA_COLUMNS,
         questions: questions.map((q: { question: string; answered: boolean }) => ({ question: q.question, answered: q.answered })),
         flaggedDiapers: flaggedDiapers.map((d: DiaperLog) => ({
-          label: d.type,
+          label: DIAPER_LABELS[d.type] ?? d.type,
           notes: d.notes,
           dateLabel: formatApptDate(d.loggedAt),
         })),
         flaggedPhotos: photoRows,
+        vaccinations: (vaccinations ?? []).map((v: { date: string; name: string; notes?: string | null }) => ({
+          date: v.date,
+          name: v.name,
+          notes: v.notes,
+        })),
+        weightPoints,
+        heightPoints,
+        weightUnit: weightRecords?.[0]?.unit ?? "kg",
+        heightUnit: heightRecords?.[0]?.unit ?? "cm",
+        weightRecords: (weightRecords ?? []).map((r: { recordedAt: string; value: number; unit: string }) => r),
+        heightRecords: (heightRecords ?? []).map((r: { recordedAt: string; value: number; unit: string }) => r),
+        healthRecords: (healthRecords ?? []).map((r: { date: string; title: string; notes?: string | null }) => r),
       });
 
       await generateAndSharePdf(html);

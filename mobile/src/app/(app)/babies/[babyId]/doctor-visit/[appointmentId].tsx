@@ -4,14 +4,15 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import useSWR, { useSWRConfig } from "swr";
 import { BackChevronIcon, EditIcon, TrashIcon } from "@/components/icons";
 import { AppointmentFormModal, Appointment } from "@/components/doctor-visit/AppointmentFormModal";
-import { buildVisitPdfHtml } from "@/components/doctor-visit/pdfTemplate";
+import { buildAppointmentPdfHtml } from "@/components/doctor-visit/pdfTemplate";
 import { VisitPrep } from "@/components/doctor-visit/VisitPrep";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
 import { useBaby } from "@/hooks/useBaby";
+import { useGrowthRecords } from "@/hooks/useHealth";
 import { apiFetch } from "@/lib/apiClient";
-import { formatApptDate, relativeDayLabel } from "@/lib/dates";
+import { ageLabel, formatApptDate, relativeDayLabel } from "@/lib/dates";
 import { generateAndSharePdf, imageToDataUri } from "@/lib/pdf";
 import { useTheme } from "@/theme/ThemeContext";
 import { textStyles } from "@/theme/typography";
@@ -21,6 +22,13 @@ const fetcher = (url: string) =>
     if (!r.ok) throw new Error("Not found");
     return r.json();
   });
+
+const DIAPER_LABELS: Record<string, string> = {
+  WET: "Wet diaper",
+  DIRTY: "Dirty diaper",
+  BOTH: "Mixed diaper",
+  DRY: "Dry diaper",
+};
 
 interface DiaperLog {
   type: string;
@@ -35,6 +43,8 @@ export default function AppointmentDetailScreen() {
   const { mutate } = useSWRConfig();
   const { data: baby } = useBaby(babyId);
   const { data: appt, error, isLoading } = useSWR<Appointment>(`/babies/${babyId}/appointments/${appointmentId}`, fetcher);
+  const { data: weightRecords } = useGrowthRecords(babyId, "WEIGHT");
+  const { data: heightRecords } = useGrowthRecords(babyId, "HEIGHT");
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [apptSaving, setApptSaving] = useState(false);
@@ -76,7 +86,7 @@ export default function AppointmentDetailScreen() {
   }
 
   async function handleExportPdf() {
-    if (!appt) return;
+    if (!appt || !baby) return;
     setExporting(true);
     try {
       const notesRes = await apiFetch(`/babies/${babyId}/doctor-notes?appointmentId=${appointmentId}`);
@@ -93,13 +103,19 @@ export default function AppointmentDetailScreen() {
         }))
       );
 
-      const html = buildVisitPdfHtml({
-        babyName: baby?.name ?? "Baby",
-        generatedDate: new Date().toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }),
-        appointments: [{ dateLabel: formatApptDate(appt.date, "long"), notes: appt.notes }],
+      const latestWeight = weightRecords?.[0];
+      const latestHeight = heightRecords?.[0];
+
+      const html = buildAppointmentPdfHtml({
+        babyName: baby.name,
+        ageLabel: ageLabel(baby.birthDate),
+        weightLabel: latestWeight ? `${latestWeight.value} ${latestWeight.unit}` : "Weight not recorded",
+        heightLabel: latestHeight ? `${latestHeight.value} ${latestHeight.unit}` : "Height not recorded",
+        appointmentDateLabel: formatApptDate(appt.date, "long"),
+        appointmentNotes: appt.notes,
         questions: questions.map((q: { question: string; answered: boolean }) => ({ question: q.question, answered: q.answered })),
         flaggedDiapers: flaggedDiapers.map((d: DiaperLog) => ({
-          label: d.type,
+          label: DIAPER_LABELS[d.type] ?? d.type,
           notes: d.notes,
           dateLabel: formatApptDate(d.loggedAt),
         })),

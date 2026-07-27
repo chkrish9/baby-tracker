@@ -1,7 +1,7 @@
 <div align="center">
   <img src="web/public/logo.svg" width="96" height="96" alt="Little Notes logo" />
   <h1>Little Notes (Baby Tracker)</h1>
-  <p>A Progressive Web App for tracking baby feedings, diaper changes, growth, vaccinations, and photos.<br/>Multiple parents can track the same baby simultaneously from any device.</p>
+  <p>A Progressive Web App <em>and</em> native iOS/Android app for tracking baby feedings, diaper changes, growth, vaccinations, and photos.<br/>Multiple parents can track the same baby simultaneously from any device.</p>
 </div>
 
 ---
@@ -13,6 +13,7 @@
 - [Tech Stack](#tech-stack)
 - [Running with Docker](#running-with-docker-recommended)
 - [Running Locally](#running-locally-development)
+- [Running the Mobile App](#running-the-mobile-app)
 - [First Run](#first-run)
 - [Project Structure](#project-structure)
 - [File Storage](#file-storage)
@@ -99,18 +100,24 @@
 
 ## Architecture
 
-The app is split into two independently deployable services:
+Two client apps share one API:
 
 ```
+┌──────────────────────┐
+│   web/  (port 3002)   │  HTTPS, cookies + CSRF
+│   Next.js UI           │ ─────────────────────┐
+└──────────────────────┘                       │
+                                                 ▼
 ┌──────────────────────┐         ┌──────────────────────┐
-│   web/  (port 3002)   │  HTTPS  │  server/ (port 4000)  │
-│   Next.js UI, no DB    │ ─────▶ │   Express API          │
-│   access, no auth       │        │   Prisma + PostgreSQL  │
-│   secrets                │ cookies│   owns file storage    │
+│   mobile/  (Expo)      │  HTTPS  │  server/ (port 4000)  │
+│   iOS / Android app,   │ ─────▶ │   Express API          │
+│   no DB access, no      │ Bearer │   Prisma + PostgreSQL  │
+│   auth secrets           │  JWT  │   owns file storage    │
 └──────────────────────┘         └──────────────────────┘
 ```
 
 - **`web/`** renders every page and talks to the API exclusively through `NEXT_PUBLIC_API_URL`, with cookies sent cross-origin (`credentials: "include"`) and a CSRF token attached to every mutating request.
+- **`mobile/`** is a pixel-faithful Expo/React Native port of the same screens, talking to the same API through `EXPO_PUBLIC_API_URL`. Since native apps have no cookie jar, it authenticates with `Authorization: Bearer <accessToken>` instead — the API's `requireAuth` middleware accepts either transport, and CSRF is skipped for bearer-authenticated requests (there's no ambient credential for a bearer token to forge).
 - **`server/`** is the sole source of truth for authentication and authorization — it owns the database, issues/verifies JWTs, enforces per-baby ownership on every route, and serves uploaded files.
 - A lightweight, non-httpOnly marker cookie set by `web/` drives instant login/logout redirects in its middleware, but it's a UX convenience only — the API re-verifies the real session on every request regardless.
 
@@ -142,11 +149,24 @@ See [Security](#security) for the full auth/CSRF/rate-limiting model.
 | Charts | D3.js |
 | PWA | Custom service worker + Web App Manifest |
 
+### `mobile/` — Native app
+
+| Layer | Technology |
+|---|---|
+| Framework | Expo SDK 54 (React Native, TypeScript), Expo Router (file-based) |
+| Styling | Plain `StyleSheet` + a hand-transcribed token file mirroring `web/`'s CSS theme variables exactly — no NativeWind, to keep colors auditable 1:1 against the web source |
+| Data Fetching | SWR (same library as `web/`) + a Bearer-token API client mirroring `web/`'s cookie-based one |
+| Auth storage | `expo-secure-store` (falls back to `AsyncStorage` on the web target, which `expo-secure-store` doesn't support) |
+| Charts | Hand-built with `react-native-svg` + `d3-scale`/`d3-shape`/`d3-time-format` — same D3-math approach as `web/`'s charts, just native SVG primitives instead of DOM `<svg>` |
+| Icons | Custom `react-native-svg` components, one per icon, ported directly from `web/`'s inline SVGs |
+| PDF export | `expo-print` (HTML → PDF) + `expo-sharing` for the native share sheet |
+| Images | `expo-image` + `expo-image-picker`, with the API's Bearer token attached per-request (the `/files/*` route requires auth, so there are no public image URLs) |
+
 ### Shared
 
 | | |
 |---|---|
-| Containerisation | Docker + Docker Compose (4 services: `db`, `migrate`, `server`, `web`) |
+| Containerisation | Docker + Docker Compose (4 services: `db`, `migrate`, `server`, `web`) — `mobile/` isn't containerized; it runs via the Expo CLI against either service |
 
 ---
 
@@ -298,13 +318,58 @@ Open **http://localhost:3002** in your browser.
 
 ---
 
+## Running the Mobile App
+
+The mobile app needs a running API (either via Docker or `server/`'s local dev server — see above) and the Expo CLI.
+
+### Prerequisites
+
+- **Node.js** 20+
+- **Expo Go** app on your phone ([iOS](https://apps.apple.com/app/expo-go/id982107779) / [Android](https://play.google.com/store/apps/details?id=host.exp.exponent)), matching this project's Expo SDK version (54) — or Xcode/Android Studio if you'd rather use a simulator/emulator
+
+### 1. Install dependencies
+
+```bash
+cd mobile
+npm install
+```
+
+### 2. Point it at the API
+
+Create `mobile/.env.local`:
+
+```env
+EXPO_PUBLIC_API_URL=http://localhost:4000
+```
+
+The right value depends on where the app is running, since `localhost` means something different on each target:
+
+| Target | `EXPO_PUBLIC_API_URL` |
+|---|---|
+| iOS Simulator | `http://localhost:4000` |
+| Android Emulator | `http://10.0.2.2:4000` (the emulator's alias for the host machine) |
+| Physical device (Expo Go) | `http://<your-computer's-LAN-IP>:4000` — find it with `ipconfig getifaddr en0` (macOS) — and make sure the phone is on the same Wi-Fi |
+
+### 3. Start it
+
+```bash
+npx expo start
+```
+
+- Press `i` for the iOS Simulator, `a` for an Android emulator, or scan the printed QR code with Expo Go on a physical device.
+- Native `fetch` isn't subject to browser CORS, so unlike `web/`, no `CORS_ORIGIN` changes are needed to reach the API from a device or simulator.
+
+---
+
 ## First Run
 
-1. Go to **`/register`** and create your account
+Steps are the same on web and mobile — the screens (and the account/data behind them) are identical, since both clients talk to the same API.
+
+1. Go to **`/register`** (web) or the **Create account** screen (mobile) and create your account
 2. On the dashboard tap **Add baby**, enter their name and date of birth
 3. Open the baby profile to log feedings and diaper changes
 4. Tap the baby's avatar to upload a profile photo
-5. Click your avatar (top-right) → **Settings** to upload your own photo and pick a theme
+5. Open **Settings** to upload your own photo and pick a theme
 
 ---
 
@@ -345,46 +410,84 @@ baby-tracker/
 │           ├── mailer.ts         # Sends invite emails via SMTP (nodemailer)
 │           └── appointments.ts   # findNextAppointmentId — auto-links flags/questions
 │
-└── web/                          # Next.js UI (port 3002)
-    ├── Dockerfile                # Multi-stage: deps → builder → runner
-    ├── .dockerignore
-    ├── public/
-    │   ├── logo.svg              # App logo
-    │   ├── manifest.json         # PWA manifest
-    │   ├── sw.js                 # Service worker
-    │   ├── offline.html          # Offline fallback
-    │   └── icons/                # PWA icons (192, 512, apple-touch)
+├── web/                          # Next.js UI (port 3002)
+│   ├── Dockerfile                # Multi-stage: deps → builder → runner
+│   ├── .dockerignore
+│   ├── public/
+│   │   ├── logo.svg              # App logo
+│   │   ├── manifest.json         # PWA manifest
+│   │   ├── sw.js                 # Service worker
+│   │   ├── offline.html          # Offline fallback
+│   │   └── icons/                # PWA icons (192, 512, apple-touch)
+│   └── src/
+│       ├── middleware.ts         # UX-only redirect based on a marker cookie
+│       ├── app/
+│       │   ├── layout.tsx        # Root layout — PWA meta, ThemeProvider
+│       │   ├── (auth)/            # Public pages: login, register
+│       │   ├── (app)/             # Auth-guarded pages
+│       │   │   ├── layout.tsx     # Client-side session gate, ToastProvider
+│       │   │   ├── dashboard/     # Baby list
+│       │   │   ├── babies/
+│       │   │   │   ├── new/       # Add baby form
+│       │   │   │   └── [babyId]/  # Profile (+ trend charts), feeding, diapers,
+│       │   │   │       │          # health, photos, doctor-visit
+│       │   │   │       └── doctor-visit/
+│       │   │   │           └── [appointmentId]/  # Per-visit questions, flagged items
+│       │   │   └── settings/      # Theme, profile photo, name, password, invites & permissions
+│       │   └── invite/[token]/    # Public invite landing page — routes to sign-in/sign-up as needed
+│       ├── components/
+│       │   ├── ThemeProvider.tsx  # CSS variable theme switcher + server sync
+│       │   ├── ui/                 # Button, Input, Card, Avatar, Badge, Modal, Toast, Spinner
+│       │   ├── layout/             # Navbar (with profile dropdown), BottomNav, PageHeader
+│       │   ├── baby/               # BabyCard
+│       │   ├── charts/              # WeeklyStackedBarChart, GrowthLineChart (D3-backed)
+│       │   ├── doctor-visit/        # VisitPrep, FlagAppointmentsModal
+│       │   └── invite/              # SectionPermissionsPicker — per-baby page-permission checkboxes
+│       ├── hooks/                   # useBaby, useFeeding, useDiapers, useHealth, useCurrentUser,
+│       │                            # usePermissions (granted page sections for a baby)
+│       └── lib/
+│           ├── api-client.ts        # Cross-origin fetch wrapper — credentials, CSRF, silent refresh
+│           ├── utils.ts             # cn(), babyDisplayName(), formatBytes(), etc.
+│           ├── charts.ts            # Chart data-shaping helpers
+│           └── sections.ts          # Shared page-permission definitions (Logs/Photos/Health/Doctor Visits)
+│
+└── mobile/                       # Expo/React Native app (iOS + Android)
+    ├── app.json                  # Expo config — name, scheme, splash, plugins
+    ├── .env.example               # EXPO_PUBLIC_API_URL template
     └── src/
-        ├── middleware.ts         # UX-only redirect based on a marker cookie
-        ├── app/
-        │   ├── layout.tsx        # Root layout — PWA meta, ThemeProvider
-        │   ├── (auth)/            # Public pages: login, register
-        │   ├── (app)/             # Auth-guarded pages
-        │   │   ├── layout.tsx     # Client-side session gate, ToastProvider
-        │   │   ├── dashboard/     # Baby list
-        │   │   ├── babies/
-        │   │   │   ├── new/       # Add baby form
-        │   │   │   └── [babyId]/  # Profile (+ trend charts), feeding, diapers,
-        │   │   │       │          # health, photos, doctor-visit
-        │   │   │       └── doctor-visit/
-        │   │   │           └── [appointmentId]/  # Per-visit questions, flagged items
-        │   │   └── settings/      # Theme, profile photo, name, password, invites & permissions
-        │   └── invite/[token]/    # Public invite landing page — routes to sign-in/sign-up as needed
+        ├── app/                   # Expo Router routes (file-based, mirrors web/'s URL structure)
+        │   ├── _layout.tsx        # Root layout — font loading, ThemeProvider, AuthProvider
+        │   ├── index.tsx          # Redirects to /dashboard or /login based on auth state
+        │   ├── (auth)/            # login, register — no chrome
+        │   ├── invite/[token]/    # Public invite landing screen
+        │   └── (app)/             # Auth-guarded — Navbar + custom bottom tab bar
+        │       ├── dashboard.tsx  # Baby list
+        │       ├── settings.tsx
+        │       └── babies/
+        │           ├── new.tsx
+        │           └── [babyId]/  # Per-baby access guard + BabyContext
+        │               ├── index.tsx      # Profile — stats, trends, quick-add
+        │               ├── edit.tsx
+        │               ├── feeding.tsx    # Combined feeding/diaper logs
+        │               ├── health.tsx     # Vaccines, weight, height, other records
+        │               ├── photos.tsx     # Grid + lightbox
+        │               └── doctor-visit/  # Overview + per-appointment detail + PDF export
         ├── components/
-        │   ├── ThemeProvider.tsx  # CSS variable theme switcher + server sync
-        │   ├── ui/                 # Button, Input, Card, Avatar, Badge, Modal, Toast, Spinner
-        │   ├── layout/             # Navbar (with profile dropdown), BottomNav, PageHeader
-        │   ├── baby/               # BabyCard
-        │   ├── charts/              # WeeklyStackedBarChart, GrowthLineChart (D3-backed)
-        │   ├── doctor-visit/        # VisitPrep, FlagAppointmentsModal
-        │   └── invite/              # SectionPermissionsPicker — per-baby page-permission checkboxes
-        ├── hooks/                   # useBaby, useFeeding, useDiapers, useHealth, useCurrentUser,
-        │                            # usePermissions (granted page sections for a baby)
-        └── lib/
-            ├── api-client.ts        # Cross-origin fetch wrapper — credentials, CSRF, silent refresh
-            ├── utils.ts             # cn(), babyDisplayName(), formatBytes(), etc.
-            ├── charts.ts            # Chart data-shaping helpers
-            └── sections.ts          # Shared page-permission definitions (Logs/Photos/Health/Doctor Visits)
+        │   ├── icons/              # One react-native-svg component per icon, ported from web/'s inline SVGs
+        │   ├── ui/                  # Button, Card, Avatar, Badge, Input, Modal, Toast, ThemeSwitcher…
+        │   ├── layout/               # BottomTabBar, Navbar
+        │   ├── charts/                # GrowthLineChart, WeeklyStackedBarChart (react-native-svg + d3)
+        │   ├── baby/, health/, photos/, doctor-visit/, invite/  # Screen-specific forms & widgets
+        ├── hooks/                   # useBaby, useSectionAccess, useActiveBaby, usePhotos…
+        ├── lib/
+        │   ├── apiClient.ts         # Bearer-token fetch wrapper — mirrors web/'s api-client.ts
+        │   ├── auth.tsx             # AuthProvider — SecureStore token lifecycle, refresh-on-401
+        │   ├── storage.ts           # SecureStore wrapper (falls back to AsyncStorage on web target)
+        │   ├── pdf.ts               # HTML → PDF via expo-print, authenticated image → data URI
+        │   └── dates.ts             # Date/time helpers ported from web/'s lib/utils.ts
+        └── theme/
+            ├── tokens.ts            # Colors/radii/shadows transcribed verbatim from web/'s globals.css
+            └── ThemeContext.tsx     # Theme provider + AsyncStorage persistence + server sync
 ```
 
 ---
@@ -434,6 +537,12 @@ In Docker, `server/uploads/` is mounted as a named volume (`uploads_data`) so fi
 |---|---|---|
 | `NEXT_PUBLIC_API_URL` | Yes | Base URL of the API the browser talks to (e.g. `http://localhost:4000`) — baked in at build time |
 
+### `mobile/.env.local`
+
+| Variable | Required | Description |
+|---|---|---|
+| `EXPO_PUBLIC_API_URL` | Yes | Base URL of the API the app talks to — value depends on target (simulator/emulator/device), see [Running the Mobile App](#running-the-mobile-app) |
+
 ### Root `.env` (Docker Compose only)
 
 Same secrets as `server/.env` (including `APP_URL`/`SMTP_*`/`EMAIL_FROM`) plus `NEXT_PUBLIC_API_URL`, read by `docker-compose.yml` for variable substitution into the containers.
@@ -462,7 +571,7 @@ The API follows a standard production hardening checklist:
 | File access | Per-file ownership check on every download, not just "any authenticated user" |
 | HTTP hardening | `helmet` security headers, `X-Powered-By` disabled, JSON body size capped at 1 MB, upload size/type limits enforced server-side |
 | Config safety | No fallback secrets — Zod-validated env, fails fast at startup on anything missing or too short |
-| Mobile-ready | `requireAuth` accepts the same access token via `Authorization: Bearer` in addition to cookies, for a future native client |
+| Mobile auth | `requireAuth` accepts the same access token via `Authorization: Bearer` in addition to cookies — this is how `mobile/` authenticates, since it has no cookie jar; `requireCsrf` skips bearer-authenticated requests, as a bearer token carries no ambient credential for CSRF to forge |
 
 ---
 
