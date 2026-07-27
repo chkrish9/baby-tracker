@@ -121,13 +121,15 @@ export default function PhotosScreen() {
         </View>
       )}
 
-      <FlagAppointmentsModal
-        open={!!flaggingPhoto}
-        onClose={() => setFlaggingPhoto(null)}
-        babyId={babyId}
-        currentAppointmentIds={flaggingPhoto?.appointmentIds ?? []}
-        onSave={(appointmentIds) => handleSaveFlags(flaggingPhoto!.id, appointmentIds)}
-      />
+      {flaggingPhoto && (
+        <FlagAppointmentsModal
+          open={!!flaggingPhoto}
+          onClose={() => setFlaggingPhoto(null)}
+          babyId={babyId}
+          currentAppointmentIds={flaggingPhoto.appointmentIds ?? []}
+          onSave={(appointmentIds) => handleSaveFlags(flaggingPhoto.id, appointmentIds)}
+        />
+      )}
 
       {viewerIndex !== null && photos && photos.length > 0 && (
         <PhotoLightbox

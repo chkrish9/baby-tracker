@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Modal } from "@/components/ui/Modal";
-import { nowDateStr } from "@/lib/dates";
+import { dateFromInput, nowDateStr } from "@/lib/dates";
 import { useTheme } from "@/theme/ThemeContext";
 
 export interface Appointment {
@@ -55,17 +55,20 @@ export function AppointmentFormModal({ open, onClose, editing, onSubmit, saving 
             </View>
           </Pressable>
           {showPicker && (
-            <DateTimePicker
-              value={new Date(date)}
-              mode="date"
-              display={Platform.OS === "ios" ? "inline" : "default"}
-              onChange={(event, d) => {
-                setShowPicker(Platform.OS === "ios");
-                if (event.type === "set" && d) {
-                  setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
-                }
-              }}
-            />
+            <View style={styles.pickerWrap}>
+              <DateTimePicker
+                value={dateFromInput(date)}
+                mode="date"
+                display={Platform.OS === "ios" ? "inline" : "default"}
+                themeVariant="light"
+                onChange={(event, d) => {
+                  setShowPicker(Platform.OS === "ios");
+                  if (event.type === "set" && d) {
+                    setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+                  }
+                }}
+              />
+            </View>
           )}
         </View>
         <View>
@@ -91,6 +94,7 @@ export function AppointmentFormModal({ open, onClose, editing, onSubmit, saving 
 
 const styles = StyleSheet.create({
   form: { gap: 16, marginTop: 8 },
+  pickerWrap: { alignItems: "center" },
   optional: { fontWeight: "400" },
   textarea: { minHeight: 72, textAlignVertical: "top" },
   submit: { width: "100%" },

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { useToast } from "@/components/ui/Toast";
-import { combineDateTime, nowDateStr, nowTimeStr, splitDateTime } from "@/lib/dates";
+import { combineDateTime, dateFromInput, nowDateStr, nowTimeStr, splitDateTime } from "@/lib/dates";
 import { useTheme } from "@/theme/ThemeContext";
 
 const DIAPER_TYPES = [
@@ -101,30 +101,36 @@ export function DiaperFormModal({ open, onClose, babyId, editingLog, onSaved, ap
         </View>
 
         {showDatePicker && (
-          <DateTimePicker
-            value={new Date(date)}
-            mode="date"
-            display={Platform.OS === "ios" ? "inline" : "default"}
-            onChange={(event, d) => {
-              setShowDatePicker(Platform.OS === "ios");
-              if (event.type === "set" && d) {
-                setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
-              }
-            }}
-          />
+          <View style={styles.pickerWrap}>
+            <DateTimePicker
+              value={dateFromInput(date)}
+              mode="date"
+              display={Platform.OS === "ios" ? "inline" : "default"}
+              themeVariant="light"
+              onChange={(event, d) => {
+                setShowDatePicker(Platform.OS === "ios");
+                if (event.type === "set" && d) {
+                  setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+                }
+              }}
+            />
+          </View>
         )}
         {showTimePicker && (
-          <DateTimePicker
-            value={new Date(`2000-01-01T${time}`)}
-            mode="time"
-            display={Platform.OS === "ios" ? "spinner" : "default"}
-            onChange={(event, d) => {
-              setShowTimePicker(Platform.OS === "ios");
-              if (event.type === "set" && d) {
-                setTime(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`);
-              }
-            }}
-          />
+          <View style={styles.pickerWrap}>
+            <DateTimePicker
+              value={new Date(`2000-01-01T${time}`)}
+              mode="time"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              themeVariant="light"
+              onChange={(event, d) => {
+                setShowTimePicker(Platform.OS === "ios");
+                if (event.type === "set" && d) {
+                  setTime(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`);
+                }
+              }}
+            />
+          </View>
         )}
 
         <View>
@@ -151,6 +157,7 @@ export function DiaperFormModal({ open, onClose, babyId, editingLog, onSaved, ap
 
 const styles = StyleSheet.create({
   form: { gap: 16, marginTop: 8 },
+  pickerWrap: { alignItems: "center" },
   fieldLabel: { fontSize: 14, fontWeight: "500", marginBottom: 8 },
   row: { flexDirection: "row", gap: 8 },
   flex1: { flex: 1 },

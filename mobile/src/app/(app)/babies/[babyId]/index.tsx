@@ -134,6 +134,10 @@ export default function BabyProfileScreen() {
 
   async function handleGalleryUpload() {
     setShowQuickAdd(false);
+    // Give the Quick Add sheet's native modal time to finish dismissing —
+    // presenting the image picker in the same tick races iOS's dismiss
+    // animation and the picker can silently fail to appear.
+    await new Promise((resolve) => setTimeout(resolve, 350));
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       allowsMultipleSelection: true,
@@ -194,7 +198,8 @@ export default function BabyProfileScreen() {
   const babiesCount = allBabies?.length ?? 1;
 
   return (
-    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.scroll}>
+    <View style={[styles.flex1, { backgroundColor: colors.background }]}>
+    <ScrollView contentContainerStyle={styles.scroll}>
       {/* Header */}
       <View style={styles.headerRow}>
         <Pressable onPress={handlePhotoUpload} style={styles.avatarWrap}>
@@ -404,6 +409,8 @@ export default function BabyProfileScreen() {
         </View>
       )}
 
+    </ScrollView>
+
       {(canLogs || canPhotos) && (
         <Pressable onPress={() => setShowQuickAdd(true)} style={[styles.fab, { backgroundColor: colors.pink[500] }]}>
           <PlusIcon color="#fff" />
@@ -440,7 +447,7 @@ export default function BabyProfileScreen() {
         onSaved={refreshLogs}
         apiFetch={apiFetch}
       />
-    </ScrollView>
+    </View>
   );
 }
 
@@ -478,7 +485,7 @@ function StatCard({
 
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  scroll: { maxWidth: 512, width: "100%", alignSelf: "center", padding: 16, gap: 16 },
+  scroll: { maxWidth: 512, width: "100%", alignSelf: "center", padding: 16, paddingBottom: 96, gap: 16 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatarWrap: { position: "relative" },
   avatarOverlay: {

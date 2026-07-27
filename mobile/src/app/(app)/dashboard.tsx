@@ -102,89 +102,94 @@ export default function DashboardScreen() {
   const hasBabies = !isLoading && babies?.length > 0;
 
   return (
-    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.scroll}>
-      <View style={styles.header}>
-        {hasBabies && (
-          <Pressable
-            onPress={handleBack}
-            style={[styles.backButton, { backgroundColor: "#fff", borderColor: colors.pink[100] + "99" }]}
-          >
-            <BackChevronIcon color={colors.foreground} />
-          </Pressable>
-        )}
-        <Text style={[textStyles.pageTitle, { color: colors.foreground }]}>Your babies</Text>
-      </View>
-
-      <Text style={[styles.subtitle, { color: colors.foreground + "80" }]}>
-        Each baby keeps their own feeding logs, diaper history, and photos. Tap a baby to switch.
-      </Text>
-
-      {isLoading && (
-        <View style={styles.loading}>
-          <Spinner />
+    <View style={[styles.flex1, { backgroundColor: colors.background }]}>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <View style={styles.header}>
+          {hasBabies && (
+            <Pressable
+              onPress={handleBack}
+              style={[styles.backButton, { backgroundColor: "#fff", borderColor: colors.pink[100] + "99" }]}
+            >
+              <BackChevronIcon color={colors.foreground} />
+            </Pressable>
+          )}
+          <Text style={[textStyles.pageTitle, { color: colors.foreground }]}>Your babies</Text>
         </View>
-      )}
 
-      <View style={styles.list}>
-        {babies?.map((baby: Baby, i: number) => (
-          <Pressable
-            key={baby.id}
-            onPress={() => router.push(`/(app)/babies/${baby.id}` as never)}
-            style={[styles.babyRow, { borderColor: colors.pink[100] + "99" }]}
-          >
-            <Avatar
-              src={baby.profilePhoto ? filesUrl(baby.profilePhoto) : undefined}
-              headers={authHeaders}
-              name={fullName(baby)}
-              size={52}
-              colorIndex={i}
-            />
-            <View style={styles.babyInfo}>
-              <Text style={[styles.babyName, { color: colors.foreground }]} numberOfLines={1}>
-                {fullName(baby)}
-              </Text>
-              <Text style={[styles.babyAge, { color: colors.foreground + "80" }]}>{ageLabel(baby.birthDate)}</Text>
-            </View>
-            <View style={styles.actions}>
-              <Pressable
-                onPress={() => router.push(`/(app)/babies/${baby.id}/edit` as never)}
-                style={styles.iconButton}
-                hitSlop={8}
-              >
-                <EditIcon color={colors.foreground + "66"} />
-              </Pressable>
-              <Pressable
-                onPress={() => handleDelete(baby)}
-                disabled={deletingId === baby.id}
-                style={styles.iconButton}
-                hitSlop={8}
-              >
-                <TrashIcon color={colors.foreground + "66"} />
-              </Pressable>
-            </View>
-          </Pressable>
-        ))}
+        <Text style={[styles.subtitle, { color: colors.foreground + "80" }]}>
+          Each baby keeps their own feeding logs, diaper history, and photos. Tap a baby to switch.
+        </Text>
 
-        {!isLoading && (
-          <Pressable
-            onPress={() => router.push("/(app)/babies/new")}
-            style={[styles.addCard, { borderColor: colors.pink[200] }]}
-          >
-            <PlusIcon size={18} strokeWidth={1.6} color={colors.foreground + "80"} />
-            <Text style={[styles.addLabel, { color: colors.foreground + "80" }]}>Add a baby</Text>
-          </Pressable>
+        {isLoading && (
+          <View style={styles.loading}>
+            <Spinner />
+          </View>
         )}
-      </View>
-    </ScrollView>
+
+        <View style={styles.list}>
+          {babies?.map((baby: Baby, i: number) => (
+            <Pressable
+              key={baby.id}
+              onPress={() => router.push(`/(app)/babies/${baby.id}` as never)}
+              style={[styles.babyRow, { borderColor: colors.pink[100] + "99" }]}
+            >
+              <Avatar
+                src={baby.profilePhoto ? filesUrl(baby.profilePhoto) : undefined}
+                headers={authHeaders}
+                name={fullName(baby)}
+                size={52}
+                colorIndex={i}
+              />
+              <View style={styles.babyInfo}>
+                <Text style={[styles.babyName, { color: colors.foreground }]} numberOfLines={1}>
+                  {fullName(baby)}
+                </Text>
+                <Text style={[styles.babyAge, { color: colors.foreground + "80" }]}>{ageLabel(baby.birthDate)}</Text>
+              </View>
+              <View style={styles.actions}>
+                <Pressable
+                  onPress={() => router.push(`/(app)/babies/${baby.id}/edit` as never)}
+                  style={styles.iconButton}
+                  hitSlop={8}
+                >
+                  <EditIcon color={colors.foreground + "66"} />
+                </Pressable>
+                <Pressable
+                  onPress={() => handleDelete(baby)}
+                  disabled={deletingId === baby.id}
+                  style={styles.iconButton}
+                  hitSlop={8}
+                >
+                  <TrashIcon color={colors.foreground + "66"} />
+                </Pressable>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+
+      {!isLoading && (
+        <Pressable
+          onPress={() => router.push("/(app)/babies/new")}
+          style={[styles.fab, { backgroundColor: colors.pink[500] }]}
+        >
+          <PlusIcon color="#fff" />
+        </Pressable>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  flex1: {
+    flex: 1,
+  },
   scroll: {
     maxWidth: 512,
     width: "100%",
     alignSelf: "center",
     padding: 16,
+    paddingBottom: 96,
   },
   header: {
     flexDirection: "row",
@@ -244,19 +249,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  addCard: {
-    flexDirection: "row",
+  fab: {
+    position: "absolute",
+    bottom: 32,
+    right: 8,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    backgroundColor: "rgba(255,255,255,0.5)",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderStyle: "dashed",
-    padding: 16,
-  },
-  addLabel: {
-    fontSize: 14,
-    fontWeight: "500",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
 });

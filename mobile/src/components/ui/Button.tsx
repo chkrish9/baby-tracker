@@ -21,6 +21,16 @@ const SIZE_STYLES: Record<ButtonSize, { paddingHorizontal: number; paddingVertic
   lg: { paddingHorizontal: 24, paddingVertical: 12, fontSize: 16 },
 };
 
+// JSX like `+ {someString}` produces an array of strings, not a single
+// string — RN requires ALL bare text (including each array entry) to be
+// wrapped in a <Text>, so plain `typeof children === "string"` isn't enough.
+function isTextLike(node: ReactNode): boolean {
+  if (node == null || typeof node === "boolean") return true;
+  if (typeof node === "string" || typeof node === "number") return true;
+  if (Array.isArray(node)) return node.every(isTextLike);
+  return false;
+}
+
 export function Button({
   variant = "primary",
   size = "md",
@@ -62,7 +72,7 @@ export function Button({
       {...props}
     >
       {loading && <ActivityIndicator size="small" color={v.text} style={styles.spinner} />}
-      {typeof children === "string" ? (
+      {isTextLike(children) ? (
         <Text style={[styles.text, { color: v.text, fontSize: s.fontSize }, textStyle]}>{children}</Text>
       ) : (
         children

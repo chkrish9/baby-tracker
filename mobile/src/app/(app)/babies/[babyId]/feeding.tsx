@@ -224,7 +224,7 @@ export default function FeedingLogsScreen() {
                 {group.items.map((log) => {
                   const chipBg = log.type === "WET" ? "#e6f3ff" : log.type === "DIRTY" ? "#fffbeb" : colors.pink[50];
                   const chipColor = log.type === "WET" ? "#0ea5e9" : log.type === "DIRTY" ? "#f59e0b" : colors.pink[400];
-                  const flagged = log.appointmentIds.length > 0;
+                  const flagged = (log.appointmentIds ?? []).length > 0;
                   return (
                     <View key={log.id} style={[styles.row, { borderColor: colors.pink[100] + "99" }]}>
                       <View style={[styles.iconChip, { backgroundColor: chipBg }]}>

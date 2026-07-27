@@ -4,6 +4,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
+import { dateFromInput } from "@/lib/dates";
 import { useTheme } from "@/theme/ThemeContext";
 
 export interface BabyFormValues {
@@ -70,16 +71,19 @@ export function BabyForm({ initialValues, onSubmit, submitLabel, loading }: Baby
           </View>
         </Pressable>
         {showPicker && (
-          <DateTimePicker
-            value={birthDate ? new Date(birthDate) : new Date()}
-            mode="date"
-            maximumDate={new Date()}
-            display={Platform.OS === "ios" ? "inline" : "default"}
-            onChange={(event, date) => {
-              setShowPicker(Platform.OS === "ios");
-              if (event.type === "set" && date) setBirthDate(toDateInput(date));
-            }}
-          />
+          <View style={styles.pickerWrap}>
+            <DateTimePicker
+              value={birthDate ? dateFromInput(birthDate) : new Date()}
+              mode="date"
+              maximumDate={new Date()}
+              display={Platform.OS === "ios" ? "inline" : "default"}
+              themeVariant="light"
+              onChange={(event, date) => {
+                setShowPicker(Platform.OS === "ios");
+                if (event.type === "set" && date) setBirthDate(toDateInput(date));
+              }}
+            />
+          </View>
         )}
       </View>
 
@@ -111,6 +115,9 @@ export function BabyForm({ initialValues, onSubmit, submitLabel, loading }: Baby
 }
 
 const styles = StyleSheet.create({
+  pickerWrap: {
+    alignItems: "center",
+  },
   card: {
     backgroundColor: "#fff",
     borderRadius: 16,

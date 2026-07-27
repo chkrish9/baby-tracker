@@ -7,6 +7,16 @@ export function addDays(date: Date, days: number): Date {
   return d;
 }
 
+// `new Date("YYYY-MM-DD")` parses a date-only string as UTC midnight (per
+// spec), not local midnight — round-tripping a locally-picked date through
+// that constructor shifts it back a day in any timezone behind UTC. Picker
+// `value` props must parse these "YYYY-MM-DD" strings back with the numeric
+// constructor instead, which is local-time.
+export function dateFromInput(s: string): Date {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export function babyDisplayName(baby: {
   name?: string | null;
   firstName?: string | null;

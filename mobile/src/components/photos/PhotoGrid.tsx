@@ -25,7 +25,7 @@ export function PhotoGrid({ photos, onPress, onFlag, onDelete }: PhotoGridProps)
   return (
     <View style={styles.grid}>
       {photos.map((photo, i) => {
-        const flagged = photo.appointmentIds.length > 0;
+        const flagged = (photo.appointmentIds ?? []).length > 0;
         return (
           <Pressable
             key={photo.id}

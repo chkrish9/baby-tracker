@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Modal } from "@/components/ui/Modal";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
-import { nowDateStr } from "@/lib/dates";
+import { dateFromInput, nowDateStr } from "@/lib/dates";
 import { useTheme } from "@/theme/ThemeContext";
 
 export type GrowthType = "WEIGHT" | "HEIGHT";
@@ -92,17 +92,20 @@ export function GrowthFormModal({ open, onClose, growthType, editing, onSubmit, 
             </View>
           </Pressable>
           {showPicker && (
-            <DateTimePicker
-              value={new Date(date)}
-              mode="date"
-              display={Platform.OS === "ios" ? "inline" : "default"}
-              onChange={(event, d) => {
-                setShowPicker(Platform.OS === "ios");
-                if (event.type === "set" && d) {
-                  setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
-                }
-              }}
-            />
+            <View style={styles.pickerWrap}>
+              <DateTimePicker
+                value={dateFromInput(date)}
+                mode="date"
+                display={Platform.OS === "ios" ? "inline" : "default"}
+                themeVariant="light"
+                onChange={(event, d) => {
+                  setShowPicker(Platform.OS === "ios");
+                  if (event.type === "set" && d) {
+                    setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+                  }
+                }}
+              />
+            </View>
           )}
         </View>
         <View>
@@ -126,6 +129,7 @@ export function GrowthFormModal({ open, onClose, growthType, editing, onSubmit, 
 
 const styles = StyleSheet.create({
   form: { gap: 16, marginTop: 8 },
+  pickerWrap: { alignItems: "center" },
   row: { flexDirection: "row", gap: 8 },
   flex1: { flex: 1 },
   unitCol: { width: 110 },
