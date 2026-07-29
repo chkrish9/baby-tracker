@@ -30,8 +30,10 @@ export function buildGrowthChartHtml(title: string, points: GrowthPoint[], unit:
   if (points.length === 0) {
     return `
       <div class="chart-block">
-        <div class="chart-header"><h3>${escapeHtml(title)}</h3></div>
-        <p class="empty">${escapeHtml(emptyLabel)}</p>
+        <div class="chart-atomic">
+          <div class="chart-header"><h3>${escapeHtml(title)}</h3></div>
+          <p class="empty">${escapeHtml(emptyLabel)}</p>
+        </div>
       </div>`;
   }
 
@@ -81,14 +83,16 @@ export function buildGrowthChartHtml(title: string, points: GrowthPoint[], unit:
 
   return `
     <div class="chart-block">
-      <div class="chart-header"><h3>${escapeHtml(title)}</h3>${latest}</div>
-      <svg width="100%" viewBox="0 0 ${WIDTH} ${HEIGHT}">
-        ${gridlines}
-        <path d="${linePath}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(${MARGIN.left},${MARGIN.top})" />
-        ${dots}
-        ${endLabels}
-        <line x1="${MARGIN.left}" x2="${MARGIN.left + innerW}" y1="${MARGIN.top + innerH}" y2="${MARGIN.top + innerH}" stroke="#c3c2b7" stroke-width="1" />
-      </svg>
+      <div class="chart-atomic">
+        <div class="chart-header"><h3>${escapeHtml(title)}</h3>${latest}</div>
+        <svg width="100%" viewBox="0 0 ${WIDTH} ${HEIGHT}">
+          ${gridlines}
+          <path d="${linePath}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(${MARGIN.left},${MARGIN.top})" />
+          ${dots}
+          ${endLabels}
+          <line x1="${MARGIN.left}" x2="${MARGIN.left + innerW}" y1="${MARGIN.top + innerH}" y2="${MARGIN.top + innerH}" stroke="#c3c2b7" stroke-width="1" />
+        </svg>
+      </div>
       <table class="data-table">
         <thead><tr><th>Date</th><th class="num">Value</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -131,8 +135,10 @@ export function buildStackedBarChartHtml(
   if (grandTotal === 0) {
     return `
       <div class="chart-block">
-        <div class="chart-header"><h3>${escapeHtml(title)}</h3><span class="chart-latest">${escapeHtml(rangeLabel)}</span></div>
-        <p class="empty">${escapeHtml(emptyLabel)}</p>
+        <div class="chart-atomic">
+          <div class="chart-header"><h3>${escapeHtml(title)}</h3><span class="chart-latest">${escapeHtml(rangeLabel)}</span></div>
+          <p class="empty">${escapeHtml(emptyLabel)}</p>
+        </div>
       </div>`;
   }
 
@@ -202,13 +208,15 @@ export function buildStackedBarChartHtml(
 
   return `
     <div class="chart-block">
-      <div class="chart-header"><h3>${escapeHtml(title)}</h3><span class="chart-latest">${escapeHtml(rangeLabel)}</span></div>
-      <svg width="100%" viewBox="0 0 ${WIDTH} ${HEIGHT}">
-        ${gridlines}
-        ${bars}
-        <line x1="${MARGIN.left}" x2="${MARGIN.left + innerW}" y1="${MARGIN.top + innerH}" y2="${MARGIN.top + innerH}" stroke="#c3c2b7" stroke-width="1" />
-      </svg>
-      <div class="legend">${legend}</div>
+      <div class="chart-atomic">
+        <div class="chart-header"><h3>${escapeHtml(title)}</h3><span class="chart-latest">${escapeHtml(rangeLabel)}</span></div>
+        <svg width="100%" viewBox="0 0 ${WIDTH} ${HEIGHT}">
+          ${gridlines}
+          ${bars}
+          <line x1="${MARGIN.left}" x2="${MARGIN.left + innerW}" y1="${MARGIN.top + innerH}" y2="${MARGIN.top + innerH}" stroke="#c3c2b7" stroke-width="1" />
+        </svg>
+        <div class="legend">${legend}</div>
+      </div>
       <table class="data-table">
         <thead><tr><th>Day</th>${headerCells}${extraHeaderCells}<th class="num">Total</th></tr></thead>
         <tbody>${rows}</tbody>
