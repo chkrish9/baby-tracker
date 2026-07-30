@@ -9,6 +9,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
 import { useBaby } from "@/hooks/useBaby";
 import { apiFetch } from "@/lib/apiClient";
+import { cancelBabyReminders, rescheduleBabyReminders, requestNotificationPermissions } from "@/lib/notifications";
 import { useTheme } from "@/theme/ThemeContext";
 
 function pad(n: number) {
@@ -40,6 +41,8 @@ export default function EditBabyScreen() {
         birthDate: values.birthDate,
         weight: values.weight ? parseFloat(values.weight) : null,
         height: values.height ? parseFloat(values.height) : null,
+        diaperReminderHours: values.diaperReminderHours ? parseInt(values.diaperReminderHours, 10) : null,
+        feedingReminderHours: values.feedingReminderHours ? parseInt(values.feedingReminderHours, 10) : null,
       }),
     });
     setLoading(false);
@@ -47,8 +50,17 @@ export default function EditBabyScreen() {
       toast("Failed to update baby", "error");
       return;
     }
+    const updatedBaby = await res.json();
     await mutate(`/babies/${babyId}`);
     await mutate("/babies");
+    if (updatedBaby.diaperReminderHours || updatedBaby.feedingReminderHours) {
+      const granted = await requestNotificationPermissions();
+      if (!granted) {
+        toast("Reminders need notification permission to work", "error");
+      } else {
+        await rescheduleBabyReminders(updatedBaby);
+      }
+    }
     toast("Baby updated!", "success");
     router.replace(`/(app)/babies/${babyId}` as never);
   }
@@ -71,6 +83,7 @@ export default function EditBabyScreen() {
               toast(d.error ?? "Failed to delete baby", "error");
               return;
             }
+            await cancelBabyReminders(babyId);
             await mutate("/babies");
             toast("Baby deleted", "success");
             router.replace("/(app)/dashboard");
@@ -101,6 +114,8 @@ export default function EditBabyScreen() {
             birthDate: toDateInputValue(baby.birthDate),
             weight: baby.weight != null ? String(baby.weight) : "",
             height: baby.height != null ? String(baby.height) : "",
+            diaperReminderHours: baby.diaperReminderHours != null ? String(baby.diaperReminderHours) : "",
+            feedingReminderHours: baby.feedingReminderHours != null ? String(baby.feedingReminderHours) : "",
           }}
           onSubmit={handleSubmit}
           submitLabel="Save changes"

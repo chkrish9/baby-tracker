@@ -14,6 +14,8 @@ export interface BabyFormValues {
   birthDate: string; // YYYY-MM-DD
   weight: string;
   height: string;
+  diaperReminderHours: string;
+  feedingReminderHours: string;
 }
 
 interface BabyFormProps {
@@ -39,6 +41,8 @@ export function BabyForm({ initialValues, onSubmit, submitLabel, loading }: Baby
   const [birthDate, setBirthDate] = useState(initialValues?.birthDate ?? "");
   const [weight, setWeight] = useState(initialValues?.weight ?? "");
   const [height, setHeight] = useState(initialValues?.height ?? "");
+  const [diaperReminderHours, setDiaperReminderHours] = useState(initialValues?.diaperReminderHours ?? "");
+  const [feedingReminderHours, setFeedingReminderHours] = useState(initialValues?.feedingReminderHours ?? "");
   const [showPicker, setShowPicker] = useState(false);
 
   const canSubmit = firstName.trim() && lastName.trim() && birthDate;
@@ -102,10 +106,46 @@ export function BabyForm({ initialValues, onSubmit, submitLabel, loading }: Baby
         </View>
       </View>
 
+      <View style={styles.row}>
+        <View style={styles.flex1}>
+          <Label>
+            Diaper reminder (hrs) <Text style={{ color: colors.foreground + "66", fontWeight: "400" }}>(optional)</Text>
+          </Label>
+          <Input
+            value={diaperReminderHours}
+            onChangeText={setDiaperReminderHours}
+            keyboardType="number-pad"
+            placeholder="e.g. 3"
+          />
+        </View>
+        <View style={styles.flex1}>
+          <Label>
+            Feeding reminder (hrs) <Text style={{ color: colors.foreground + "66", fontWeight: "400" }}>(optional)</Text>
+          </Label>
+          <Input
+            value={feedingReminderHours}
+            onChangeText={setFeedingReminderHours}
+            keyboardType="number-pad"
+            placeholder="e.g. 3"
+          />
+        </View>
+      </View>
+
       <Button
         loading={loading}
         disabled={!canSubmit}
-        onPress={() => onSubmit({ firstName, lastName, nickname, birthDate, weight, height })}
+        onPress={() =>
+          onSubmit({
+            firstName,
+            lastName,
+            nickname,
+            birthDate,
+            weight,
+            height,
+            diaperReminderHours,
+            feedingReminderHours,
+          })
+        }
         style={styles.submit}
       >
         {submitLabel}

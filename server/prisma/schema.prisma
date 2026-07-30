@@ -29,6 +29,8 @@ model Baby {
   birthDate    DateTime
   weight       Float? // kg
   height       Float? // cm
+  diaperReminderHours  Int?
+  feedingReminderHours Int?
   profilePhoto String? // relative path: babies/[id]/profile/filename
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt

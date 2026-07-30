@@ -1,5 +1,6 @@
 import useSWR from "swr";
 import { apiFetch } from "@/lib/apiClient";
+import { Baby } from "@/types/baby";
 
 const fetcher = (url: string) =>
   apiFetch(url).then((r) => {
@@ -8,9 +9,9 @@ const fetcher = (url: string) =>
   });
 
 export function useBabies() {
-  return useSWR("/babies", fetcher);
+  return useSWR<Baby[]>("/babies", fetcher);
 }
 
 export function useBaby(babyId: string | undefined) {
-  return useSWR(babyId ? `/babies/${babyId}` : null, fetcher);
+  return useSWR<Baby | undefined>(babyId ? `/babies/${babyId}` : null, fetcher);
 }

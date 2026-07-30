@@ -8,7 +8,11 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ToastProvider } from "@/components/ui/Toast";
 import { AuthProvider } from "@/lib/auth";
+import { configureNotificationHandler, ensureAndroidChannel } from "@/lib/notifications";
 import { ThemeProvider } from "@/theme/ThemeContext";
+
+configureNotificationHandler();
+ensureAndroidChannel();
 
 SplashScreen.preventAutoHideAsync();
 

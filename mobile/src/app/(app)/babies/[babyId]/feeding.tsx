@@ -12,7 +12,9 @@ import { useToast } from "@/components/ui/Toast";
 import { useDiapers } from "@/hooks/useDiapers";
 import { useFeedings } from "@/hooks/useFeeding";
 import { apiFetch } from "@/lib/apiClient";
+import { useBabyContext } from "@/lib/BabyContext";
 import { dayLabel, formatTime, timeAgo } from "@/lib/dates";
+import { rescheduleReminder } from "@/lib/notifications";
 import { useTheme } from "@/theme/ThemeContext";
 import { textStyles } from "@/theme/typography";
 
@@ -48,6 +50,7 @@ export default function FeedingLogsScreen() {
   const { colors } = useTheme();
   const { toast } = useToast();
   const { mutate } = useSWRConfig();
+  const { baby } = useBabyContext();
 
   const [tab, setTab] = useState<Tab>("feeding");
   useEffect(() => {
@@ -64,12 +67,26 @@ export default function FeedingLogsScreen() {
   const { data: diapers, isLoading: diaperLoading } = useDiapers(babyId);
 
   async function refreshFeedings() {
-    await mutate(`/babies/${babyId}/feeding`);
+    const fresh = await mutate(`/babies/${babyId}/feeding`);
     await mutate(`/babies/${babyId}`);
+    await rescheduleReminder({
+      babyId,
+      babyName: baby?.name,
+      type: "feeding",
+      intervalHours: baby?.feedingReminderHours,
+      lastLoggedAt: fresh?.[0]?.loggedAt ?? null,
+    });
   }
   async function refreshDiapers() {
-    await mutate(`/babies/${babyId}/diapers`);
+    const fresh = await mutate(`/babies/${babyId}/diapers`);
     await mutate(`/babies/${babyId}`);
+    await rescheduleReminder({
+      babyId,
+      babyName: baby?.name,
+      type: "diaper",
+      intervalHours: baby?.diaperReminderHours,
+      lastLoggedAt: fresh?.[0]?.loggedAt ?? null,
+    });
   }
 
   async function handleDeleteFeed(logId: string) {

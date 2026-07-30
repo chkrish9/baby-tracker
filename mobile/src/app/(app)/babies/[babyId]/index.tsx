@@ -39,6 +39,7 @@ import { useBabies } from "@/hooks/useBaby";
 import { useGrowthRecords } from "@/hooks/useHealth";
 import { apiFetch } from "@/lib/apiClient";
 import { useBabyContext } from "@/lib/BabyContext";
+import { rescheduleReminder } from "@/lib/notifications";
 import { formatMinutes, formatMl, formatOz, timeAgo, formatTime, ageLabel } from "@/lib/dates";
 import { useAuthHeaders, filesUrl } from "@/lib/files";
 import { useTheme } from "@/theme/ThemeContext";
@@ -103,9 +104,27 @@ export default function BabyProfileScreen() {
   }, [feedings, diapers]);
 
   async function refreshLogs() {
-    await mutate(`/babies/${babyId}/feeding`);
-    await mutate(`/babies/${babyId}/diapers`);
+    const [freshFeedings, freshDiapers] = await Promise.all([
+      mutate(`/babies/${babyId}/feeding`),
+      mutate(`/babies/${babyId}/diapers`),
+    ]);
     await mutate(`/babies/${babyId}`);
+    if (baby) {
+      await rescheduleReminder({
+        babyId,
+        babyName: baby.name,
+        type: "feeding",
+        intervalHours: baby.feedingReminderHours,
+        lastLoggedAt: freshFeedings?.[0]?.loggedAt ?? null,
+      });
+      await rescheduleReminder({
+        babyId,
+        babyName: baby.name,
+        type: "diaper",
+        intervalHours: baby.diaperReminderHours,
+        lastLoggedAt: freshDiapers?.[0]?.loggedAt ?? null,
+      });
+    }
   }
 
   async function handlePhotoUpload() {

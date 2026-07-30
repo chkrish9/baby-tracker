@@ -99,7 +99,7 @@ export default function DashboardScreen() {
     );
   }
 
-  const hasBabies = !isLoading && babies?.length > 0;
+  const hasBabies = !isLoading && (babies?.length ?? 0) > 0;
 
   return (
     <View style={[styles.flex1, { backgroundColor: colors.background }]}>

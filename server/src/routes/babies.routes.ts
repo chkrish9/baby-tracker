@@ -41,6 +41,8 @@ router.post(
         birthDate: data.birthDate,
         weight: data.weight ?? null,
         height: data.height ?? null,
+        diaperReminderHours: data.diaperReminderHours ?? null,
+        feedingReminderHours: data.feedingReminderHours ?? null,
         parents: { create: { userId: req.user!.id, role: "OWNER" } },
       },
       include: { parents: { include: { user: { select: { id: true, name: true, email: true } } } } },
