@@ -41,8 +41,8 @@ export default function EditBabyScreen() {
         birthDate: values.birthDate,
         weight: values.weight ? parseFloat(values.weight) : null,
         height: values.height ? parseFloat(values.height) : null,
-        diaperReminderHours: values.diaperReminderHours ? parseInt(values.diaperReminderHours, 10) : null,
-        feedingReminderHours: values.feedingReminderHours ? parseInt(values.feedingReminderHours, 10) : null,
+        diaperReminderMinutes: values.diaperReminderMinutes ? parseInt(values.diaperReminderMinutes, 10) : null,
+        feedingReminderMinutes: values.feedingReminderMinutes ? parseInt(values.feedingReminderMinutes, 10) : null,
       }),
     });
     setLoading(false);
@@ -53,7 +53,7 @@ export default function EditBabyScreen() {
     const updatedBaby = await res.json();
     await mutate(`/babies/${babyId}`);
     await mutate("/babies");
-    if (updatedBaby.diaperReminderHours || updatedBaby.feedingReminderHours) {
+    if (updatedBaby.diaperReminderMinutes || updatedBaby.feedingReminderMinutes) {
       const granted = await requestNotificationPermissions();
       if (!granted) {
         toast("Reminders need notification permission to work", "error");
@@ -114,8 +114,8 @@ export default function EditBabyScreen() {
             birthDate: toDateInputValue(baby.birthDate),
             weight: baby.weight != null ? String(baby.weight) : "",
             height: baby.height != null ? String(baby.height) : "",
-            diaperReminderHours: baby.diaperReminderHours != null ? String(baby.diaperReminderHours) : "",
-            feedingReminderHours: baby.feedingReminderHours != null ? String(baby.feedingReminderHours) : "",
+            diaperReminderMinutes: baby.diaperReminderMinutes != null ? String(baby.diaperReminderMinutes) : "",
+            feedingReminderMinutes: baby.feedingReminderMinutes != null ? String(baby.feedingReminderMinutes) : "",
           }}
           onSubmit={handleSubmit}
           submitLabel="Save changes"

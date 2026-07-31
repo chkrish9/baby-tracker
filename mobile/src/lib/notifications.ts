@@ -57,20 +57,20 @@ export async function rescheduleReminder(params: {
   babyId: string;
   babyName?: string;
   type: ReminderType;
-  intervalHours: number | null | undefined;
+  intervalMinutes: number | null | undefined;
   lastLoggedAt: string | null | undefined;
 }): Promise<void> {
-  const { babyId, babyName, type, intervalHours, lastLoggedAt } = params;
+  const { babyId, babyName, type, intervalMinutes, lastLoggedAt } = params;
   const rId = repeatId(babyId, type);
   const cId = catchupId(babyId, type);
 
   await Notifications.cancelScheduledNotificationAsync(rId).catch(() => {});
   await Notifications.cancelScheduledNotificationAsync(cId).catch(() => {});
 
-  if (!intervalHours || !lastLoggedAt) return;
+  if (!intervalMinutes || !lastLoggedAt) return;
 
   const copy = REMINDER_COPY[type];
-  const intervalMs = intervalHours * 3600 * 1000;
+  const intervalMs = intervalMinutes * 60 * 1000;
   const overdue = Date.now() >= new Date(lastLoggedAt).getTime() + intervalMs;
 
   if (overdue) {
@@ -98,7 +98,7 @@ export async function rescheduleReminder(params: {
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds: intervalHours * 3600,
+      seconds: intervalMinutes * 60,
       repeats: true,
     },
   });
@@ -118,14 +118,14 @@ export async function rescheduleBabyReminders(baby: Baby): Promise<void> {
     babyId: baby.id,
     babyName: baby.name,
     type: "feeding",
-    intervalHours: baby.feedingReminderHours,
+    intervalMinutes: baby.feedingReminderMinutes,
     lastLoggedAt: feedings?.[0]?.loggedAt ?? null,
   });
   await rescheduleReminder({
     babyId: baby.id,
     babyName: baby.name,
     type: "diaper",
-    intervalHours: baby.diaperReminderHours,
+    intervalMinutes: baby.diaperReminderMinutes,
     lastLoggedAt: diapers?.[0]?.loggedAt ?? null,
   });
 }

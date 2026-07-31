@@ -19,8 +19,8 @@ export const babyCreateSchema = z.object({
   birthDate: z.coerce.date(),
   weight: z.coerce.number().positive().optional().nullable(),
   height: z.coerce.number().positive().optional().nullable(),
-  diaperReminderHours: z.coerce.number().int().min(1).max(48).optional().nullable(),
-  feedingReminderHours: z.coerce.number().int().min(1).max(48).optional().nullable(),
+  diaperReminderMinutes: z.coerce.number().int().min(1).max(2880).optional().nullable(),
+  feedingReminderMinutes: z.coerce.number().int().min(1).max(2880).optional().nullable(),
 });
 
 export const babyUpdateSchema = z.object({
@@ -30,8 +30,20 @@ export const babyUpdateSchema = z.object({
   birthDate: z.coerce.date().optional(),
   weight: z.coerce.number().positive().optional().nullable(),
   height: z.coerce.number().positive().optional().nullable(),
-  diaperReminderHours: z.coerce.number().int().min(1).max(48).optional().nullable(),
-  feedingReminderHours: z.coerce.number().int().min(1).max(48).optional().nullable(),
+  diaperReminderMinutes: z.coerce.number().int().min(1).max(2880).optional().nullable(),
+  feedingReminderMinutes: z.coerce.number().int().min(1).max(2880).optional().nullable(),
+});
+
+export const pushSubscribeSchema = z.object({
+  endpoint: z.string().url(),
+  keys: z.object({
+    p256dh: z.string().min(1),
+    auth: z.string().min(1),
+  }),
+});
+
+export const pushUnsubscribeSchema = z.object({
+  endpoint: z.string().url(),
 });
 
 export const feedingCreateSchema = z.object({

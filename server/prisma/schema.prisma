@@ -8,30 +8,45 @@ datasource db {
 }
 
 model User {
-  id           String       @id @default(cuid())
-  email        String       @unique
-  password     String // bcrypt hash
-  name         String?
-  theme        String       @default("stone")
-  profilePhoto String? // relative path: users/[id]/profile/filename
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  babies       BabyParent[]
-  sentInvites  Invite[]     @relation("InviteSender")
+  id                String             @id @default(cuid())
+  email             String             @unique
+  password          String // bcrypt hash
+  name              String?
+  theme             String             @default("stone")
+  profilePhoto      String? // relative path: users/[id]/profile/filename
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  babies            BabyParent[]
+  sentInvites       Invite[]           @relation("InviteSender")
+  pushSubscriptions PushSubscription[]
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Baby {
-  id           String            @id @default(cuid())
-  name         String
-  firstName    String?
-  lastName     String?
-  nickname     String?
-  birthDate    DateTime
-  weight       Float? // kg
-  height       Float? // cm
-  diaperReminderHours  Int?
-  feedingReminderHours Int?
-  profilePhoto String? // relative path: babies/[id]/profile/filename
+  id                         String              @id @default(cuid())
+  name                       String
+  firstName                  String?
+  lastName                   String?
+  nickname                   String?
+  birthDate                  DateTime
+  weight                     Float? // kg
+  height                     Float? // cm
+  diaperReminderMinutes      Int?
+  feedingReminderMinutes     Int?
+  lastDiaperReminderSentAt   DateTime?
+  lastFeedingReminderSentAt  DateTime?
+  profilePhoto               String? // relative path: babies/[id]/profile/filename
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
   parents      BabyParent[]

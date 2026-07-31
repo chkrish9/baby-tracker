@@ -73,7 +73,7 @@ export default function FeedingLogsScreen() {
       babyId,
       babyName: baby?.name,
       type: "feeding",
-      intervalHours: baby?.feedingReminderHours,
+      intervalMinutes: baby?.feedingReminderMinutes,
       lastLoggedAt: fresh?.[0]?.loggedAt ?? null,
     });
   }
@@ -84,7 +84,7 @@ export default function FeedingLogsScreen() {
       babyId,
       babyName: baby?.name,
       type: "diaper",
-      intervalHours: baby?.diaperReminderHours,
+      intervalMinutes: baby?.diaperReminderMinutes,
       lastLoggedAt: fresh?.[0]?.loggedAt ?? null,
     });
   }

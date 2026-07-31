@@ -20,6 +20,7 @@ import parentsRoutes from "./routes/parents.routes";
 import invitesRoutes from "./routes/invites.routes";
 import userRoutes from "./routes/user.routes";
 import filesRoutes from "./routes/files.routes";
+import pushRoutes from "./routes/push.routes";
 
 export function createApp() {
   const app = express();
@@ -61,6 +62,7 @@ export function createApp() {
   app.use("/invites", invitesRoutes);
   app.use("/user", userRoutes);
   app.use("/files", filesRoutes);
+  app.use("/push", pushRoutes);
 
   app.use((_req, res) => {
     res.status(404).json({ error: "Not found" });

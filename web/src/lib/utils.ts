@@ -40,6 +40,18 @@ export function formatMl(ml: number): string {
   return `${Math.round(ml)} ml`;
 }
 
+export function toHoursAndMinutes(totalMinutes: number | null | undefined): { hours: number; minutes: number } {
+  if (!totalMinutes) return { hours: 0, minutes: 0 };
+  return { hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60 };
+}
+
+export function toTotalMinutes(hours: string, minutes: string): number | null {
+  const h = parseInt(hours, 10) || 0;
+  const m = parseInt(minutes, 10) || 0;
+  const total = h * 60 + m;
+  return total > 0 ? total : null;
+}
+
 export function formatMinutes(totalMinutes: number): string {
   const min = Math.round(totalMinutes);
   if (min < 60) return `${min}m`;

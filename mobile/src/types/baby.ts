@@ -17,7 +17,7 @@ export interface Baby {
   weight?: number | null;
   height?: number | null;
   profilePhoto?: string | null;
-  diaperReminderHours?: number | null;
-  feedingReminderHours?: number | null;
+  diaperReminderMinutes?: number | null;
+  feedingReminderMinutes?: number | null;
   parents?: ParentLink[];
 }

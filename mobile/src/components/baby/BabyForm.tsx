@@ -14,8 +14,23 @@ export interface BabyFormValues {
   birthDate: string; // YYYY-MM-DD
   weight: string;
   height: string;
-  diaperReminderHours: string;
-  feedingReminderHours: string;
+  diaperReminderMinutes: string; // total minutes
+  feedingReminderMinutes: string; // total minutes
+}
+
+function splitMinutes(totalMinutes: string | undefined): { hours: string; minutes: string } {
+  const total = parseInt(totalMinutes ?? "", 10);
+  if (!total) return { hours: "", minutes: "" };
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  return { hours: hours ? String(hours) : "", minutes: minutes ? String(minutes) : "" };
+}
+
+function joinMinutes(hours: string, minutes: string): string {
+  const h = parseInt(hours, 10) || 0;
+  const m = parseInt(minutes, 10) || 0;
+  const total = h * 60 + m;
+  return total > 0 ? String(total) : "";
 }
 
 interface BabyFormProps {
@@ -41,8 +56,12 @@ export function BabyForm({ initialValues, onSubmit, submitLabel, loading }: Baby
   const [birthDate, setBirthDate] = useState(initialValues?.birthDate ?? "");
   const [weight, setWeight] = useState(initialValues?.weight ?? "");
   const [height, setHeight] = useState(initialValues?.height ?? "");
-  const [diaperReminderHours, setDiaperReminderHours] = useState(initialValues?.diaperReminderHours ?? "");
-  const [feedingReminderHours, setFeedingReminderHours] = useState(initialValues?.feedingReminderHours ?? "");
+  const initialDiaper = splitMinutes(initialValues?.diaperReminderMinutes);
+  const initialFeeding = splitMinutes(initialValues?.feedingReminderMinutes);
+  const [diaperReminderH, setDiaperReminderH] = useState(initialDiaper.hours);
+  const [diaperReminderM, setDiaperReminderM] = useState(initialDiaper.minutes);
+  const [feedingReminderH, setFeedingReminderH] = useState(initialFeeding.hours);
+  const [feedingReminderM, setFeedingReminderM] = useState(initialFeeding.minutes);
   const [showPicker, setShowPicker] = useState(false);
 
   const canSubmit = firstName.trim() && lastName.trim() && birthDate;
@@ -106,28 +125,51 @@ export function BabyForm({ initialValues, onSubmit, submitLabel, loading }: Baby
         </View>
       </View>
 
-      <View style={styles.row}>
-        <View style={styles.flex1}>
-          <Label>
-            Diaper reminder (hrs) <Text style={{ color: colors.foreground + "66", fontWeight: "400" }}>(optional)</Text>
-          </Label>
-          <Input
-            value={diaperReminderHours}
-            onChangeText={setDiaperReminderHours}
-            keyboardType="number-pad"
-            placeholder="e.g. 3"
-          />
+      <View>
+        <Label>
+          Diaper reminder <Text style={{ color: colors.foreground + "66", fontWeight: "400" }}>(optional)</Text>
+        </Label>
+        <View style={styles.row}>
+          <View style={styles.flex1}>
+            <Input
+              value={diaperReminderH}
+              onChangeText={setDiaperReminderH}
+              keyboardType="number-pad"
+              placeholder="Hours"
+            />
+          </View>
+          <View style={styles.flex1}>
+            <Input
+              value={diaperReminderM}
+              onChangeText={setDiaperReminderM}
+              keyboardType="number-pad"
+              placeholder="Minutes"
+            />
+          </View>
         </View>
-        <View style={styles.flex1}>
-          <Label>
-            Feeding reminder (hrs) <Text style={{ color: colors.foreground + "66", fontWeight: "400" }}>(optional)</Text>
-          </Label>
-          <Input
-            value={feedingReminderHours}
-            onChangeText={setFeedingReminderHours}
-            keyboardType="number-pad"
-            placeholder="e.g. 3"
-          />
+      </View>
+
+      <View>
+        <Label>
+          Feeding reminder <Text style={{ color: colors.foreground + "66", fontWeight: "400" }}>(optional)</Text>
+        </Label>
+        <View style={styles.row}>
+          <View style={styles.flex1}>
+            <Input
+              value={feedingReminderH}
+              onChangeText={setFeedingReminderH}
+              keyboardType="number-pad"
+              placeholder="Hours"
+            />
+          </View>
+          <View style={styles.flex1}>
+            <Input
+              value={feedingReminderM}
+              onChangeText={setFeedingReminderM}
+              keyboardType="number-pad"
+              placeholder="Minutes"
+            />
+          </View>
         </View>
       </View>
 
@@ -142,8 +184,8 @@ export function BabyForm({ initialValues, onSubmit, submitLabel, loading }: Baby
             birthDate,
             weight,
             height,
-            diaperReminderHours,
-            feedingReminderHours,
+            diaperReminderMinutes: joinMinutes(diaperReminderH, diaperReminderM),
+            feedingReminderMinutes: joinMinutes(feedingReminderH, feedingReminderM),
           })
         }
         style={styles.submit}

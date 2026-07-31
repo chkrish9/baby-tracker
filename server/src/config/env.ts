@@ -17,6 +17,9 @@ const envSchema = z.object({
   SMTP_USER: z.string().min(1, "SMTP_USER is required"),
   SMTP_PASS: z.string().min(1, "SMTP_PASS is required"),
   EMAIL_FROM: z.string().min(1, "EMAIL_FROM is required"),
+  VAPID_PUBLIC_KEY: z.string().min(1, "VAPID_PUBLIC_KEY is required"),
+  VAPID_PRIVATE_KEY: z.string().min(1, "VAPID_PRIVATE_KEY is required"),
+  VAPID_SUBJECT: z.string().min(1, "VAPID_SUBJECT is required"),
 });
 
 function loadEnv() {

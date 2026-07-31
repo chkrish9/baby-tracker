@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { apiFetch } from "@/lib/api-client";
+import { toTotalMinutes } from "@/lib/utils";
 
 export default function NewBabyPage() {
   const router = useRouter();
@@ -17,6 +18,10 @@ export default function NewBabyPage() {
   const [birthDate, setBirthDate] = useState("");
   const [weight, setWeight] = useState("");
   const [height, setHeight] = useState("");
+  const [diaperReminderH, setDiaperReminderH] = useState("");
+  const [diaperReminderM, setDiaperReminderM] = useState("");
+  const [feedingReminderH, setFeedingReminderH] = useState("");
+  const [feedingReminderM, setFeedingReminderM] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -32,6 +37,8 @@ export default function NewBabyPage() {
         birthDate,
         weight: weight ? parseFloat(weight) : null,
         height: height ? parseFloat(height) : null,
+        diaperReminderMinutes: toTotalMinutes(diaperReminderH, diaperReminderM),
+        feedingReminderMinutes: toTotalMinutes(feedingReminderH, feedingReminderM),
       }),
     });
     setLoading(false);
@@ -79,6 +86,24 @@ export default function NewBabyPage() {
                 Height (cm) <span className="text-foreground/40 font-normal">(optional)</span>
               </label>
               <Input type="number" step="0.1" min="0" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="e.g. 50" />
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground block mb-1.5">
+              Diaper reminder <span className="text-foreground/40 font-normal">(optional)</span>
+            </label>
+            <div className="flex gap-3">
+              <Input type="number" min="0" value={diaperReminderH} onChange={(e) => setDiaperReminderH(e.target.value)} placeholder="Hours" />
+              <Input type="number" min="0" max="59" value={diaperReminderM} onChange={(e) => setDiaperReminderM(e.target.value)} placeholder="Minutes" />
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground block mb-1.5">
+              Feeding reminder <span className="text-foreground/40 font-normal">(optional)</span>
+            </label>
+            <div className="flex gap-3">
+              <Input type="number" min="0" value={feedingReminderH} onChange={(e) => setFeedingReminderH(e.target.value)} placeholder="Hours" />
+              <Input type="number" min="0" max="59" value={feedingReminderM} onChange={(e) => setFeedingReminderM(e.target.value)} placeholder="Minutes" />
             </div>
           </div>
           <Button type="submit" loading={loading} className="w-full !py-3">Add baby</Button>

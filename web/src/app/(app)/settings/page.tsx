@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/Toast";
 import { apiFetch, logout } from "@/lib/api-client";
 import { SECTIONS, type Section } from "@/lib/sections";
 import { SectionPermissionsPicker } from "@/components/invite/SectionPermissionsPicker";
+import { NotificationSettings } from "@/components/settings/NotificationSettings";
 
 const fetcher = (url: string) => apiFetch(url).then((r) => r.json());
 
@@ -186,6 +187,12 @@ export default function SettingsPage() {
       <div className="bg-white rounded-2xl border border-pink-100/60 p-4 mb-3">
         <p className="text-xs font-semibold text-foreground/40 tracking-widest uppercase mb-4">Theme</p>
         <ThemeSwitcher showLabels />
+      </div>
+
+      {/* Notifications */}
+      <div className="bg-white rounded-2xl border border-pink-100/60 p-4 mb-3">
+        <p className="text-xs font-semibold text-foreground/40 tracking-widest uppercase mb-4">Notifications</p>
+        <NotificationSettings />
       </div>
 
       {/* Profile */}

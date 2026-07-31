@@ -25,8 +25,8 @@ export default function NewBabyScreen() {
         birthDate: values.birthDate,
         weight: values.weight ? parseFloat(values.weight) : null,
         height: values.height ? parseFloat(values.height) : null,
-        diaperReminderHours: values.diaperReminderHours ? parseInt(values.diaperReminderHours, 10) : null,
-        feedingReminderHours: values.feedingReminderHours ? parseInt(values.feedingReminderHours, 10) : null,
+        diaperReminderMinutes: values.diaperReminderMinutes ? parseInt(values.diaperReminderMinutes, 10) : null,
+        feedingReminderMinutes: values.feedingReminderMinutes ? parseInt(values.feedingReminderMinutes, 10) : null,
       }),
     });
     setLoading(false);

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/Input";
 import { Spinner } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
 import { apiFetch } from "@/lib/api-client";
+import { toHoursAndMinutes, toTotalMinutes } from "@/lib/utils";
 
 function toDateInputValue(iso: string) {
   const d = new Date(iso);
@@ -28,6 +29,10 @@ export default function EditBabyPage({ params }: { params: Promise<{ babyId: str
   const [birthDate, setBirthDate] = useState("");
   const [weight, setWeight] = useState("");
   const [height, setHeight] = useState("");
+  const [diaperReminderH, setDiaperReminderH] = useState("");
+  const [diaperReminderM, setDiaperReminderM] = useState("");
+  const [feedingReminderH, setFeedingReminderH] = useState("");
+  const [feedingReminderM, setFeedingReminderM] = useState("");
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -39,6 +44,12 @@ export default function EditBabyPage({ params }: { params: Promise<{ babyId: str
     setBirthDate(toDateInputValue(baby.birthDate));
     setWeight(baby.weight != null ? String(baby.weight) : "");
     setHeight(baby.height != null ? String(baby.height) : "");
+    const diaper = toHoursAndMinutes(baby.diaperReminderMinutes);
+    setDiaperReminderH(diaper.hours ? String(diaper.hours) : "");
+    setDiaperReminderM(diaper.minutes ? String(diaper.minutes) : "");
+    const feeding = toHoursAndMinutes(baby.feedingReminderMinutes);
+    setFeedingReminderH(feeding.hours ? String(feeding.hours) : "");
+    setFeedingReminderM(feeding.minutes ? String(feeding.minutes) : "");
   }, [baby]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -54,6 +65,8 @@ export default function EditBabyPage({ params }: { params: Promise<{ babyId: str
         birthDate,
         weight: weight ? parseFloat(weight) : null,
         height: height ? parseFloat(height) : null,
+        diaperReminderMinutes: toTotalMinutes(diaperReminderH, diaperReminderM),
+        feedingReminderMinutes: toTotalMinutes(feedingReminderH, feedingReminderM),
       }),
     });
     setLoading(false);
@@ -116,6 +129,24 @@ export default function EditBabyPage({ params }: { params: Promise<{ babyId: str
                 Height (cm) <span className="text-foreground/40 font-normal">(optional)</span>
               </label>
               <Input type="number" step="0.1" min="0" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="e.g. 50" />
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground block mb-1.5">
+              Diaper reminder <span className="text-foreground/40 font-normal">(optional)</span>
+            </label>
+            <div className="flex gap-3">
+              <Input type="number" min="0" value={diaperReminderH} onChange={(e) => setDiaperReminderH(e.target.value)} placeholder="Hours" />
+              <Input type="number" min="0" max="59" value={diaperReminderM} onChange={(e) => setDiaperReminderM(e.target.value)} placeholder="Minutes" />
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground block mb-1.5">
+              Feeding reminder <span className="text-foreground/40 font-normal">(optional)</span>
+            </label>
+            <div className="flex gap-3">
+              <Input type="number" min="0" value={feedingReminderH} onChange={(e) => setFeedingReminderH(e.target.value)} placeholder="Hours" />
+              <Input type="number" min="0" max="59" value={feedingReminderM} onChange={(e) => setFeedingReminderM(e.target.value)} placeholder="Minutes" />
             </div>
           </div>
           <Button type="submit" loading={loading} className="w-full !py-3">Save changes</Button>

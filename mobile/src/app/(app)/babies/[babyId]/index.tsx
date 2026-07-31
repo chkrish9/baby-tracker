@@ -114,14 +114,14 @@ export default function BabyProfileScreen() {
         babyId,
         babyName: baby.name,
         type: "feeding",
-        intervalHours: baby.feedingReminderHours,
+        intervalMinutes: baby.feedingReminderMinutes,
         lastLoggedAt: freshFeedings?.[0]?.loggedAt ?? null,
       });
       await rescheduleReminder({
         babyId,
         babyName: baby.name,
         type: "diaper",
-        intervalHours: baby.diaperReminderHours,
+        intervalMinutes: baby.diaperReminderMinutes,
         lastLoggedAt: freshDiapers?.[0]?.loggedAt ?? null,
       });
     }
