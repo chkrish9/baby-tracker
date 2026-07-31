@@ -583,6 +583,41 @@ Same secrets as `server/.env` (including `APP_URL`/`SMTP_*`/`EMAIL_FROM`/`VAPID_
 
 `.env.example` files are committed alongside each real `.env` as a template.
 
+### Generating VAPID Keys (for Web Push)
+
+`VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` are the keypair the API uses to sign web push messages — required for the [Reminders & Notifications](#features) feature's web push to work at all. Generate your own:
+
+```bash
+cd server
+npx web-push generate-vapid-keys
+```
+
+This prints output like:
+
+```
+=======================================
+
+Public Key:
+BN0tGyZk7peQr1o5PBYpp2MCAkXwEKyM_tV1reRSrKA3u95X78JTkhepqLgsh2VdmJ7hpBermXsdg8jKJqfVDu4
+
+Private Key:
+OJATZ1vZdLefromVX8vHTkZjh6fo5vF_cpKxqWNkHKI
+
+=======================================
+```
+
+Copy both into `server/.env` (and the root `.env` too if you're using Docker Compose):
+
+```env
+VAPID_PUBLIC_KEY="<paste the Public Key here>"
+VAPID_PRIVATE_KEY="<paste the Private Key here>"
+VAPID_SUBJECT="mailto:you@yourdomain.com"
+```
+
+`VAPID_SUBJECT` isn't generated — it's just a contact URI (a `mailto:` address or an `https://` URL) that push services can use to reach you if your server misbehaves. Any value works; it doesn't need to be a real inbox.
+
+Restart the API afterward (`npm run dev`, or `docker compose restart server`) — `env.ts` validates these at startup and refuses to boot without them. Generate a **separate** keypair for production rather than reusing your dev one (see [Production Notes](#production-notes)) — rotating keys invalidates every existing browser subscription.
+
 ---
 
 ## Security
