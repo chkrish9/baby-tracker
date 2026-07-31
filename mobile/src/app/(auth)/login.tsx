@@ -40,8 +40,9 @@ export default function LoginScreen() {
       return;
     }
 
-    const babiesRes = await apiFetch("/babies");
-    const babies = babiesRes.ok ? await babiesRes.json() : [];
+    const babies = await apiFetch("/babies")
+      .then((res) => (res.ok ? res.json() : []))
+      .catch(() => []);
     setLoading(false);
     if (babies.length > 0) {
       const activeBabyId = await AsyncStorage.getItem("activeBabyId");

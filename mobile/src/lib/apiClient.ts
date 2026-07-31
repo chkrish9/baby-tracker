@@ -89,16 +89,23 @@ export interface AuthUser {
   name: string | null;
 }
 
+const NETWORK_ERROR = "Could not reach the server. Check your connection and try again.";
+
 export async function login(
   email: string,
   password: string,
   rememberMe: boolean
 ): Promise<{ user: AuthUser } | { error: string }> {
-  const res = await fetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, rememberMe }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, rememberMe }),
+    });
+  } catch {
+    return { error: NETWORK_ERROR };
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     return { error: data.error ?? "Invalid email or password" };
@@ -112,10 +119,15 @@ export async function register(
   password: string,
   name: string | undefined
 ): Promise<{ ok: true } | { error: string }> {
-  const res = await apiFetch("/auth/register", {
-    method: "POST",
-    body: JSON.stringify({ email, password, name }),
-  });
+  let res: Response;
+  try {
+    res = await apiFetch("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password, name }),
+    });
+  } catch {
+    return { error: NETWORK_ERROR };
+  }
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     return { error: data.error ?? "Registration failed" };
