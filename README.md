@@ -91,6 +91,12 @@
 - **Display name** — update your name
 - **Change password** — requires current password verification
 
+### Reminders & Notifications
+- Set a **diaper reminder** and/or **feeding reminder** interval per baby (hours + minutes) from that baby's edit page — leave either blank to disable it
+- **Mobile** — reminders are scheduled locally on-device (`expo-notifications`), so they fire even when the app is backgrounded; tapping one opens that baby's log. Rescheduled automatically whenever a new entry is logged or the interval is changed
+- **Web** — real Web Push: enable it once from **Settings → Notifications** (browser permission prompt + service worker subscription) and reminders arrive even if the tab or browser is fully closed. A server-side scheduler checks every baby's last feeding/diaper log each minute and pushes to every parent on that baby once it's overdue, repeating on the same interval until a new entry is logged
+- Both platforms share the same per-baby interval — set it once, get reminded on whichever device you have notifications enabled on
+
 ### PWA (Progressive Web App)
 - Install on iOS, Android, or desktop via "Add to Home Screen"
 - Works offline — cached pages and logs load without a network connection
@@ -138,6 +144,7 @@ See [Security](#security) for the full auth/CSRF/rate-limiting model.
 | Security | `helmet`, `cors`, `express-rate-limit`, double-submit CSRF, `bcryptjs` |
 | Uploads | `multer` (memory storage) → local filesystem |
 | Email | `nodemailer` over SMTP — invite emails |
+| Push notifications | `web-push` (VAPID) + an in-process interval scheduler that checks overdue babies and pushes to their parents |
 
 ### `web/` — UI
 
@@ -148,6 +155,7 @@ See [Security](#security) for the full auth/CSRF/rate-limiting model.
 | Data Fetching | SWR + a shared cross-origin API client |
 | Charts | D3.js |
 | PWA | Custom service worker + Web App Manifest |
+| Push notifications | Web Push API (`PushManager`) + the service worker's `push`/`notificationclick` handlers, subscribed with a VAPID key fetched from the API |
 
 ### `mobile/` — Native app
 
@@ -161,6 +169,7 @@ See [Security](#security) for the full auth/CSRF/rate-limiting model.
 | Icons | Custom `react-native-svg` components, one per icon, ported directly from `web/`'s inline SVGs |
 | PDF export | `expo-print` (HTML → PDF) + `expo-sharing` for the native share sheet |
 | Images | `expo-image` + `expo-image-picker`, with the API's Bearer token attached per-request (the `/files/*` route requires auth, so there are no public image URLs) |
+| Notifications | `expo-notifications` — local, OS-scheduled reminders, no server round-trip |
 
 ### Shared
 
@@ -193,12 +202,21 @@ SMTP_PORT=587
 SMTP_USER=your-smtp-username
 SMTP_PASS=your-smtp-password
 EMAIL_FROM=Little Notes <noreply@yourdomain.com>
+VAPID_PUBLIC_KEY=generate-with-npx-web-push-generate-vapid-keys
+VAPID_PRIVATE_KEY=generate-with-npx-web-push-generate-vapid-keys
+VAPID_SUBJECT=mailto:you@yourdomain.com
 ```
 
-Generate secure values (run twice, once per secret):
+Generate the token secrets (run twice, once per secret):
 
 ```bash
 openssl rand -base64 32
+```
+
+Generate the VAPID keypair (needed for web push notifications):
+
+```bash
+cd server && npx web-push generate-vapid-keys
 ```
 
 ### 2. Build and start
@@ -287,7 +305,12 @@ SMTP_PORT=587
 SMTP_USER=your-smtp-username
 SMTP_PASS=your-smtp-password
 EMAIL_FROM=Little Notes <noreply@yourdomain.com>
+VAPID_PUBLIC_KEY=generate-with-npx-web-push-generate-vapid-keys
+VAPID_PRIVATE_KEY=generate-with-npx-web-push-generate-vapid-keys
+VAPID_SUBJECT=mailto:you@yourdomain.com
 ```
+
+Generate the VAPID keypair with `npx web-push generate-vapid-keys` (run from `server/`, after `npm install`).
 
 `web/.env.local`:
 
@@ -370,6 +393,7 @@ Steps are the same on web and mobile — the screens (and the account/data behin
 3. Open the baby profile to log feedings and diaper changes
 4. Tap the baby's avatar to upload a profile photo
 5. Open **Settings** to upload your own photo and pick a theme
+6. On web, also enable notifications from **Settings → Notifications**; then set a diaper/feeding reminder interval from the baby's edit page to start getting reminders
 
 ---
 
@@ -400,7 +424,7 @@ baby-tracker/
 │       │   └── errorHandler.ts  # Centralized error → JSON responses
 │       ├── routes/               # auth, babies, feeding, diapers, doctorNotes, growth,
 │       │                         # healthRecords, vaccinations, appointments, photos,
-│       │                         # parents, invites, user, files (one file per resource)
+│       │                         # parents, invites, user, files, push (one file per resource)
 │       └── lib/
 │           ├── db.ts             # Prisma client singleton
 │           ├── tokens.ts         # Access/refresh JWT sign & verify
@@ -408,7 +432,9 @@ baby-tracker/
 │           ├── upload.ts         # saveFile / deleteFile helpers
 │           ├── validation.ts     # Zod schemas for all API inputs
 │           ├── mailer.ts         # Sends invite emails via SMTP (nodemailer)
-│           └── appointments.ts   # findNextAppointmentId — auto-links flags/questions
+│           ├── appointments.ts   # findNextAppointmentId — auto-links flags/questions
+│           ├── push.ts           # web-push wrapper — send to a user/baby's parents, prune dead subscriptions
+│           └── reminderScheduler.ts  # Interval loop — checks overdue babies, sends push, repeats
 │
 ├── web/                          # Next.js UI (port 3002)
 │   ├── Dockerfile                # Multi-stage: deps → builder → runner
@@ -433,7 +459,7 @@ baby-tracker/
 │       │   │   │       │          # health, photos, doctor-visit
 │       │   │   │       └── doctor-visit/
 │       │   │   │           └── [appointmentId]/  # Per-visit questions, flagged items
-│       │   │   └── settings/      # Theme, profile photo, name, password, invites & permissions
+│       │   │   └── settings/      # Theme, profile photo, name, password, invites & permissions, notifications
 │       │   └── invite/[token]/    # Public invite landing page — routes to sign-in/sign-up as needed
 │       ├── components/
 │       │   ├── ThemeProvider.tsx  # CSS variable theme switcher + server sync
@@ -442,14 +468,16 @@ baby-tracker/
 │       │   ├── baby/               # BabyCard
 │       │   ├── charts/              # WeeklyStackedBarChart, GrowthLineChart (D3-backed)
 │       │   ├── doctor-visit/        # VisitPrep, FlagAppointmentsModal
-│       │   └── invite/              # SectionPermissionsPicker — per-baby page-permission checkboxes
+│       │   ├── invite/              # SectionPermissionsPicker — per-baby page-permission checkboxes
+│       │   └── settings/            # NotificationSettings — push permission state + enable/disable
 │       ├── hooks/                   # useBaby, useFeeding, useDiapers, useHealth, useCurrentUser,
 │       │                            # usePermissions (granted page sections for a baby)
 │       └── lib/
 │           ├── api-client.ts        # Cross-origin fetch wrapper — credentials, CSRF, silent refresh
-│           ├── utils.ts             # cn(), babyDisplayName(), formatBytes(), etc.
+│           ├── utils.ts             # cn(), babyDisplayName(), formatBytes(), toHoursAndMinutes(), etc.
 │           ├── charts.ts            # Chart data-shaping helpers
-│           └── sections.ts          # Shared page-permission definitions (Logs/Photos/Health/Doctor Visits)
+│           ├── sections.ts          # Shared page-permission definitions (Logs/Photos/Health/Doctor Visits)
+│           └── push.ts              # Web Push subscribe/unsubscribe, permission-state helpers
 │
 └── mobile/                       # Expo/React Native app (iOS + Android)
     ├── app.json                  # Expo config — name, scheme, splash, plugins
@@ -484,7 +512,8 @@ baby-tracker/
         │   ├── auth.tsx             # AuthProvider — SecureStore token lifecycle, refresh-on-401
         │   ├── storage.ts           # SecureStore wrapper (falls back to AsyncStorage on web target)
         │   ├── pdf.ts               # HTML → PDF via expo-print, authenticated image → data URI
-        │   └── dates.ts             # Date/time helpers ported from web/'s lib/utils.ts
+        │   ├── dates.ts             # Date/time helpers ported from web/'s lib/utils.ts
+        │   └── notifications.ts     # Local reminder scheduling (expo-notifications) — schedule/cancel/resync per baby
         └── theme/
             ├── tokens.ts            # Colors/radii/shadows transcribed verbatim from web/'s globals.css
             └── ThemeContext.tsx     # Theme provider + AsyncStorage persistence + server sync
@@ -528,6 +557,9 @@ In Docker, `server/uploads/` is mounted as a named volume (`uploads_data`) so fi
 | `SMTP_USER` | Yes | SMTP auth username |
 | `SMTP_PASS` | Yes | SMTP auth password |
 | `EMAIL_FROM` | Yes | From address on invite emails, e.g. `"Little Notes <noreply@yourdomain.com>"` |
+| `VAPID_PUBLIC_KEY` | Yes | Web Push public key — generate with `npx web-push generate-vapid-keys` (from `server/`) |
+| `VAPID_PRIVATE_KEY` | Yes | Web Push private key from the same command — keep secret |
+| `VAPID_SUBJECT` | Yes | Contact URI sent with push requests, e.g. `mailto:you@yourdomain.com` |
 | `PORT` | No | Defaults to `4000` |
 | `NODE_ENV` | No | Defaults to `development`; gates the `Secure` cookie flag |
 
@@ -545,7 +577,7 @@ In Docker, `server/uploads/` is mounted as a named volume (`uploads_data`) so fi
 
 ### Root `.env` (Docker Compose only)
 
-Same secrets as `server/.env` (including `APP_URL`/`SMTP_*`/`EMAIL_FROM`) plus `NEXT_PUBLIC_API_URL`, read by `docker-compose.yml` for variable substitution into the containers.
+Same secrets as `server/.env` (including `APP_URL`/`SMTP_*`/`EMAIL_FROM`/`VAPID_*`) plus `NEXT_PUBLIC_API_URL`, read by `docker-compose.yml` for variable substitution into the containers.
 
 > For local SMTP testing without a real mail provider, a free [Mailtrap](https://mailtrap.io) sandbox or an [Ethereal](https://ethereal.email) throwaway test account both work as drop-in `SMTP_*` values.
 
@@ -572,12 +604,14 @@ The API follows a standard production hardening checklist:
 | HTTP hardening | `helmet` security headers, `X-Powered-By` disabled, JSON body size capped at 1 MB, upload size/type limits enforced server-side |
 | Config safety | No fallback secrets — Zod-validated env, fails fast at startup on anything missing or too short |
 | Mobile auth | `requireAuth` accepts the same access token via `Authorization: Bearer` in addition to cookies — this is how `mobile/` authenticates, since it has no cookie jar; `requireCsrf` skips bearer-authenticated requests, as a bearer token carries no ambient credential for CSRF to forge |
+| Push subscriptions | Stored per-user, scoped to that user's own reminders; a subscription the push service reports as gone (410/404) is deleted automatically on the next send attempt |
 
 ---
 
 ## Production Notes
 
 - **`ACCESS_TOKEN_SECRET` / `REFRESH_TOKEN_SECRET`** must be strong, distinct random values — never reuse dev secrets in production, and never reuse one for the other
+- **`VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`** — generate a separate production keypair (`npx web-push generate-vapid-keys`) rather than reusing the dev one; rotating them invalidates every existing browser subscription, so users would need to re-enable notifications
 - **`CORS_ORIGIN` / `NEXT_PUBLIC_API_URL`** must point at real public hostnames in production (not `localhost`) — e.g. `https://app.example.com` and `https://api.example.com`
 - **HTTPS is required** — `Secure` cookies only get set (and only get sent back) over HTTPS once `NODE_ENV=production`; run both services behind a reverse proxy (Nginx, Caddy, Traefik) with TLS
 - **Database** — swap the Docker PostgreSQL for a managed service (Supabase, Railway, Neon) by updating `DATABASE_URL`
